@@ -93,6 +93,12 @@ rem   El import de Qt en ezdxf es perezoso y nunca se ejecuta en ARQ GEN.
     --collect-submodules plugins.builtin ^
     --collect-submodules ui ^
     --add-data "resources;resources" ^
+    --add-data "web;web" ^
+    --hidden-import sqlite3 ^
+    --hidden-import engines.cuban_standards_engine ^
+    --hidden-import engines.mep_security_engine ^
+    --hidden-import services.generative_architecture_service ^
+    --hidden-import services.precons_catalog_service ^
     --exclude-module PySide6 ^
     --exclude-module shiboken6 ^
     --exclude-module PySide2 ^

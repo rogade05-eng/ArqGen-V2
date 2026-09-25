@@ -1,0 +1,86 @@
+================================================================================
+   ARQ GEN V2 — GUIA DE INSTALACION Y COMPILACION EN WINDOWS (10 / 11)
+================================================================================
+
+Este paquete contiene el codigo fuente completo, los motores normativos de
+ingenieria (NC, MEP, SADI, SACI, CCTV, Intrusion), el catalogo oficial PRECONS III
+y los scripts .bat para compilar el ejecutable autonomo (.exe) sin depender de Python
+en las maquinas cliente.
+
+--------------------------------------------------------------------------------
+1. REQUISITOS PREVIOS EN WINDOWS
+--------------------------------------------------------------------------------
+1. Descargar e instalar Python 3.11, 3.12 o 3.13 oficial desde:
+   https://www.python.org/downloads/
+   
+   *** IMPORTANTE ***: 
+   En la primera pantalla del instalador de Python, marcar la casilla:
+   [X] Add python.exe to PATH   (Agregar python.exe a las variables de entorno)
+
+--------------------------------------------------------------------------------
+2. PASOS PARA COMPILAR EL EJECUTABLE (.EXE)
+--------------------------------------------------------------------------------
+El proyecto incluye un pipeline automatizado de 4 scripts por lotes (.bat):
+
+PASO 1: Verificar el entorno
+   Hacer doble clic en:
+   -> 00_VERIFICAR_ENTORNO.bat
+   Comprueba que Python este en el PATH y que la arquitectura sea correcta (64-bit).
+
+PASO 2: Instalar las dependencias necesarias
+   Hacer doble clic en:
+   -> 01_INSTALAR_DEPENDENCIAS.bat
+   Instala ezdxf, openpyxl y pyinstaller en el entorno local. Todo queda listo
+   para funcionar 100% offline.
+
+PASO 3: Ejecutar la suite de pruebas
+   Hacer doble clic en:
+   -> 02_PRUEBAS.bat
+   Ejecuta las pruebas unitarias para certificar que todos los motores matematicos,
+   cálculos de hormigón armado, viento, sismo, MEP y seguridad pasen al 100%.
+
+PASO 4: Compilar con PyInstaller
+   Hacer doble clic en:
+   -> 03_COMPILAR.bat
+   Este script ejecuta el pipeline de compilacion completo:
+   a) Pruebas previas (registradas en logs\tests\pre_build_*.log)
+   b) Empaquetado PyInstaller en modo onedir con inclusion de recursos y Web Studio
+      (registrado en logs\build\build_*.log)
+   c) Selftest automatico del .exe generado (registrado en logs\tests\post_build_*.log)
+
+   Al finalizar con éxito, el ejecutable estara disponible en:
+   -> dist\ARQ_GEN\ARQ_GEN.exe
+
+--------------------------------------------------------------------------------
+3. EJECUCION DE ARQ GEN
+--------------------------------------------------------------------------------
+- Probar el ejecutable compilado:
+  Hacer doble clic en:
+  -> 05_EJECUTAR_COMPILADO.bat   (o 09_GUI_COMPILADO.bat para interfaz grafica)
+
+- Abrir el Web Studio 2D CAD / 3D BIM (puerto 3000):
+  Abrir una ventana de comandos (cmd) en la carpeta y ejecutar:
+  > python main.py web 3000
+  Y abrir en el navegador: http://localhost:3000
+
+- Comandos de ingeniería y MEP disponibles en consola:
+  > python main.py generate mi_casa.arqgen --template VIVIENDA_2D
+  > python main.py mep bioclimatic --ancho 10 --fondo 8 --orientacion SUR
+  > python main.py mep hydraulic --habitantes 5 --dias 2.5
+  > python main.py mep electrical --area 85 --ac-units 2
+  > python main.py mep sadi --area 85
+  > python main.py mep saci --area 85
+  > python main.py mep cctv
+  > python main.py mep intrusion --area 85 --puertas 2 --ventanas 5
+  > python main.py precons catalogo-search "bloque hormigon"
+
+--------------------------------------------------------------------------------
+4. REGISTRO DE LOGS
+--------------------------------------------------------------------------------
+Todos los registros de ejecucion, auditoria y compilacion se almacenan en:
+- logs\app\arqgen.log    -> Actividad del sistema y eventos
+- logs\app\errors.log    -> Trazas de excepciones en caso de fallo
+- logs\build\            -> Logs detallados del compilador PyInstaller
+- logs\tests\            -> Logs de las pruebas previas y posteriores a compilar
+- logs\bat_boot.log      -> Latido y diagnostico de ejecucion de scripts .bat
+================================================================================

@@ -211,6 +211,23 @@ class ArqGenWebHandler(SimpleHTTPRequestHandler):
             self.wfile.write(content)
             return
 
+        # 7. Descargar ZIP de Fuentes y Scripts Windows
+        if path in ("/api/download/zip", "/download/ArqGen_V2_Windows_Source_Package.zip", "/ArqGen_V2_Windows_Source_Package.zip"):
+            zip_path = os.path.join(PROJECT_ROOT, "ArqGen_V2_Windows_Source_Package.zip")
+            if not os.path.exists(zip_path):
+                self.send_error(404, "Archivo ZIP no encontrado")
+                return
+            with open(zip_path, "rb") as fh:
+                content = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Disposition", 'attachment; filename="ArqGen_V2_Windows_Source_Package.zip"')
+            self.send_header("Content-Length", str(len(content)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(content)
+            return
+
         # Servir index.html y estáticos por defecto
         super().do_GET()
 
