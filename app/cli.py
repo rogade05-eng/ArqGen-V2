@@ -706,6 +706,11 @@ def _build_parser() -> argparse.ArgumentParser:
     pm_cctv = psub_mep.add_parser("cctv", help="Seguridad Electrónica CCTV y Grabación NVR")
     pm_cctv.add_argument("--camaras", type=int, default=4, help="Número de cámaras IP")
     pm_cctv.add_argument("--dias", type=int, default=30, help="Días de grabación continua")
+
+    pm_int = psub_mep.add_parser("intrusion", help="Sistema de Alarma Contra Intrusión y Robo (Grado 2 EN 50131)")
+    pm_int.add_argument("--area", type=float, default=80.0, help="Área total construida (m²)")
+    pm_int.add_argument("--puertas", type=int, default=1, help="Número de puertas de acceso exterior")
+    pm_int.add_argument("--ventanas", type=int, default=4, help="Número de ventanas perimetrales")
     p = sub.add_parser("selftest", help="Verificación integral interna")
     from app.cli_fases import add_parsers as add_v13_parsers
     add_v13_parsers(sub)
@@ -2174,6 +2179,34 @@ def cmd_mep_cctv(application, args) -> int:
     return 0
 
 
+def cmd_mep_intrusion(application, args) -> int:
+    from engines.mep_security_engine import calculate_intrusion_system
+    res = calculate_intrusion_system(
+        building_area_m2=args.area,
+        num_exterior_doors=args.puertas,
+        num_exterior_windows=args.ventanas
+    )
+    print("=" * 65)
+    print("SISTEMA DE ALARMA CONTRA INTRUSIÓN Y ROBO — GRADO 2 EN 50131")
+    print("=" * 65)
+    print(f"Superficie Protegida: {res.total_area_m2:.1f} m² | Zonas Totales: {res.num_zones}")
+    print(f"Grado de Seguridad:   {res.security_grade}")
+    print(f"Detectores PIR:       {res.pir_detectors_count} uds (Infrarrojos pasivos volumétricos 90°)")
+    print(f"Contactos Magnéticos: {res.magnetic_contacts_count} uds (Apertura perimetral en puertas/ventanas)")
+    print(f"Rotura de Cristal:    {res.glass_break_detectors_count} uds (Sensores acústicos piezoeléctricos)")
+    print(f"Teclados Numéricos:   {res.keypads_count} uds (LCD con lector RFID de proximidad)")
+    print(f"Sirenas:              {res.interior_sirens_count} interior ({res.siren_spl_db:.0f} dB) + {res.exterior_sirens_count} exterior blindada")
+    print("-" * 65)
+    print(f"Consumo Reposo:       {res.standby_current_ma:.1f} mA | Alarma: {res.alarm_current_a:.2f} A")
+    print(f"Batería AGM Respaldo: {res.battery_capacity_ah:.1f} Ah a 12V (24h reposo + 30 min alarma)")
+    print(f"Comunicador:          {res.communicator_type}")
+    print(f"ESTADO NORMATIVO:     {res.compliance_status}")
+    print("\nDispositivos Recomendados en el Despliegue:")
+    for d in res.recommended_devices:
+        print(f"  • {d}")
+    return 0
+
+
 # -- security commands (spec 37-49) ---------------------------------------------------
 def _security_service(context):
     from services.security_service import SecurityService
@@ -2872,6 +2905,7 @@ HANDLERS = {
     ("mep", "sadi"): cmd_mep_sadi,
     ("mep", "saci"): cmd_mep_saci,
     ("mep", "cctv"): cmd_mep_cctv,
+    ("mep", "intrusion"): cmd_mep_intrusion,
     ("sec", "net"): cmd_sec_net,
     ("sec", "device-add"): cmd_sec_device_add,
     ("sec", "coverage"): cmd_sec_coverage,

@@ -175,6 +175,9 @@ python main.py mep saci --area 85 --riesgo LEVE
 
 # 6. Seguridad Electrónica CCTV (cámaras IP 4MP H.265, 30 días almacenamiento continuo en TB, switch PoE, Cat6)
 python main.py mep cctv
+
+# 7. Alarma Contra Intrusión y Robo (Grado 2 EN 50131: PIR volumétrico, magnéticos perimetrales, rotura cristal, teclado, sirenas)
+python main.py mep intrusion --area 85 --puertas 2 --ventanas 5
 ```
 
 ### Interfaz gráfica (FASE 90, spec 90-93; editable desde v1.6.0)

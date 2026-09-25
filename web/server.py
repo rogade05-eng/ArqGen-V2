@@ -319,6 +319,24 @@ class ArqGenWebHandler(SimpleHTTPRequestHandler):
                 self._send_json({"error": str(e)}, status=400)
             return
 
+        if path == "/api/mep/intrusion":
+            from engines.mep_security_engine import calculate_intrusion_system
+            try:
+                area = float(body.get("area", 80.0))
+                doors = int(body.get("doors", 1))
+                windows = int(body.get("windows", 4))
+                patio = bool(body.get("patio", True))
+                intrusion = calculate_intrusion_system(
+                    building_area_m2=area,
+                    num_exterior_doors=doors,
+                    num_exterior_windows=windows,
+                    has_patio=patio
+                )
+                self._send_json(intrusion.__dict__)
+            except Exception as e:
+                self._send_json({"error": str(e)}, status=400)
+            return
+
         # 2. Viga NC 207
         if path == "/api/struct/beam":
             try:

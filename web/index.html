@@ -120,6 +120,7 @@
           <label class="flex items-center gap-1 cursor-pointer text-emerald-400 hover:text-emerald-300"><input type="checkbox" id="layer-drain" checked onchange="drawCAD()"> 🚽 Drenaje</label>
           <label class="flex items-center gap-1 cursor-pointer text-rose-400 hover:text-rose-300"><input type="checkbox" id="layer-fire" checked onchange="drawCAD()"> 🔥 SADI</label>
           <label class="flex items-center gap-1 cursor-pointer text-purple-400 hover:text-purple-300"><input type="checkbox" id="layer-cctv" checked onchange="drawCAD()"> 📹 CCTV</label>
+          <label class="flex items-center gap-1 cursor-pointer text-cyan-400 hover:text-cyan-300"><input type="checkbox" id="layer-int" checked onchange="drawCAD()"> 🚨 Intrusión</label>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="resetZoom()" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-gray-300">Ajustar Vista (F)</button>
@@ -484,6 +485,9 @@
         <button onclick="switchMepCalc('cctv')" id="mep-btn-cctv" class="mep-btn w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover flex items-center gap-2 transition">
           <span>📹</span> CCTV & Seguridad NVR
         </button>
+        <button onclick="switchMepCalc('intrusion')" id="mep-btn-intrusion" class="mep-btn w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover flex items-center gap-2 transition">
+          <span>🚨</span> Alarma Intrusión & Robo
+        </button>
 
         <div class="mt-auto bg-dark-base border border-dark-border rounded-lg p-3 text-[11px] text-gray-400 space-y-1">
           <div class="font-bold text-gray-300">Normativa Aplicada:</div>
@@ -651,6 +655,32 @@
           <button onclick="calculateCctv()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Sistema CCTV</button>
           <div id="mep-cctv-results" class="border-t border-dark-border pt-4 mt-4 space-y-3"></div>
         </div>
+
+        <!-- 7. Intrusion Calc -->
+        <div id="mep-calc-intrusion" class="space-y-6 hidden">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>🚨</span> Sistema de Alarma Contra Intrusión y Robo (Grado 2 EN 50131)
+            </h3>
+            <p class="text-xs text-gray-400 mt-1">Cálculo de detectores volumétricos PIR 90°, contactos magnéticos perimetrales, sensores acústicos de rotura de cristal, teclados, sirenas y batería de respaldo 24h.</p>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Área Construida (m²)</label>
+              <input type="number" id="mep-int-area" value="80.0" step="5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Puertas Acceso Exterior</label>
+              <input type="number" id="mep-int-doors" value="1" min="1" max="10" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Ventanas Perimetrales</label>
+              <input type="number" id="mep-int-wins" value="4" min="1" max="30" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+          </div>
+          <button onclick="calculateIntrusion()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Sistema de Intrusión</button>
+          <div id="mep-int-results" class="border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
       </div>
     </div>
 
@@ -725,7 +755,7 @@
         btn.classList.add('bg-blue-600', 'text-white');
       }
 
-      ['bioclimatic', 'hydraulic', 'electrical', 'sadi', 'saci', 'cctv'].forEach(c => {
+      ['bioclimatic', 'hydraulic', 'electrical', 'sadi', 'saci', 'cctv', 'intrusion'].forEach(c => {
         const el = document.getElementById(`mep-calc-${c}`);
         if (el) el.classList.toggle('hidden', c !== calc);
       });
@@ -910,6 +940,7 @@
           if (sys === 'SANITARY_DRAINAGE' && !document.getElementById('layer-drain')?.checked) return;
           if (sys === 'FIRE_ALARM' && !document.getElementById('layer-fire')?.checked) return;
           if (sys === 'CCTV' && !document.getElementById('layer-cctv')?.checked) return;
+          if (sys === 'INTRUSION' && !document.getElementById('layer-int')?.checked) return;
 
           const p1 = toScreen(seg.x1, seg.y1);
           const p2 = toScreen(seg.x2, seg.y2);
@@ -938,6 +969,10 @@
             ctx.strokeStyle = '#A855F7';
             ctx.lineWidth = 2.0;
             ctx.setLineDash([5, 3]);
+          } else if (sys === 'INTRUSION') {
+            ctx.strokeStyle = '#06B6D4';
+            ctx.lineWidth = 1.6;
+            ctx.setLineDash([3, 3]);
           }
           ctx.stroke();
           ctx.setLineDash([]);
@@ -953,6 +988,7 @@
           if (sys === 'SANITARY_DRAINAGE' && !document.getElementById('layer-drain')?.checked) return;
           if (sys === 'FIRE_ALARM' && !document.getElementById('layer-fire')?.checked) return;
           if (sys === 'CCTV' && !document.getElementById('layer-cctv')?.checked) return;
+          if (sys === 'INTRUSION' && !document.getElementById('layer-int')?.checked) return;
 
           const pt = toScreen(nd.x, nd.y);
 
@@ -1080,6 +1116,52 @@
               ctx.fillStyle = '#C084FC';
               ctx.font = 'bold 8px sans-serif';
               ctx.fillText('NVR', pt.x, pt.y - 8);
+            }
+          } else if (sys === 'INTRUSION') {
+            if (nd.kind === 'INTRUSION_PANEL') {
+              ctx.fillStyle = '#0891B2';
+              ctx.strokeStyle = '#A5F3FC';
+              ctx.lineWidth = 2;
+              ctx.fillRect(pt.x - 7, pt.y - 7, 14, 14);
+              ctx.strokeRect(pt.x - 7, pt.y - 7, 14, 14);
+              ctx.fillStyle = '#22D3EE';
+              ctx.font = 'bold 9px sans-serif';
+              ctx.fillText('🚨 Alarma', pt.x, pt.y - 10);
+            } else if (nd.kind === 'KEYPAD') {
+              ctx.fillStyle = '#0E7490';
+              ctx.strokeStyle = '#FFFFFF';
+              ctx.lineWidth = 1.5;
+              ctx.fillRect(pt.x - 5, pt.y - 6, 10, 12);
+              ctx.strokeRect(pt.x - 5, pt.y - 6, 10, 12);
+              ctx.fillStyle = '#A5F3FC';
+              ctx.font = '8px sans-serif';
+              ctx.fillText('Teclado', pt.x, pt.y - 8);
+            } else if (nd.kind === 'PIR') {
+              // Volumetric 90° arc
+              ctx.beginPath();
+              ctx.moveTo(pt.x, pt.y);
+              ctx.arc(pt.x, pt.y, 22, 0, Math.PI * 0.5);
+              ctx.closePath();
+              ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+              ctx.fill();
+              ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+              ctx.stroke();
+
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+              ctx.fillStyle = '#06B6D4';
+              ctx.fill();
+            } else if (nd.kind === 'MAGNETIC_CONTACT') {
+              ctx.fillStyle = '#22D3EE';
+              ctx.fillRect(pt.x - 4, pt.y - 4, 8, 8);
+            } else if (nd.kind === 'SIREN') {
+              ctx.fillStyle = '#0284C7';
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#38BDF8';
+              ctx.font = 'bold 8px sans-serif';
+              ctx.fillText('Sirena', pt.x, pt.y - 8);
             }
           }
         });
@@ -1666,6 +1748,45 @@
             <div class="font-bold text-gray-300 mb-1">Cámaras Desplegadas:</div>
             <ul class="list-disc pl-4 space-y-0.5">
               ${data.camera_locations.map(loc => `<li>${loc}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      `;
+    }
+
+    async function calculateIntrusion() {
+      const area = parseFloat(document.getElementById('mep-int-area').value);
+      const doors = parseInt(document.getElementById('mep-int-doors').value);
+      const windows = parseInt(document.getElementById('mep-int-wins').value);
+
+      const res = await fetch('/api/mep/intrusion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ area, doors, windows, patio: true })
+      });
+      const data = await res.json();
+      const div = document.getElementById('mep-int-results');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-3 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">Alarma de Intrusión y Robo — ${data.security_grade}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300">${data.compliance_status}</span>
+          </div>
+          <div class="grid grid-cols-4 gap-3 text-gray-300">
+            <div>Detectores PIR Volumétricos: <strong class="font-mono text-cyan-400">${data.pir_detectors_count} uds</strong></div>
+            <div>Contactos Magnéticos: <strong class="font-mono text-cyan-400">${data.magnetic_contacts_count} uds</strong></div>
+            <div>Rotura de Cristal: <strong class="font-mono text-white">${data.glass_break_detectors_count} uds</strong></div>
+            <div>Teclados Numéricos: <strong class="font-mono text-white">${data.keypads_count} uds</strong></div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 text-gray-300 bg-dark-hover/40 p-2.5 rounded-lg">
+            <div>Sirenas: <strong>${data.interior_sirens_count} int (${data.siren_spl_db}dB) + ${data.exterior_sirens_count} ext</strong></div>
+            <div>Batería Respaldo: <strong class="text-amber-400">${data.battery_capacity_ah} Ah (12V)</strong></div>
+            <div>Comunicador: <strong class="text-emerald-400">Dual IP + 4G LTE</strong></div>
+          </div>
+          <div class="text-gray-400 border-t border-dark-border pt-2">
+            <div class="font-bold text-gray-300 mb-1">Dispositivos y Componentes Recomendados:</div>
+            <ul class="list-disc pl-4 space-y-0.5">
+              ${data.recommended_devices.map(d => `<li>${d}</li>`).join('')}
             </ul>
           </div>
         </div>

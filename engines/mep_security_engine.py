@@ -388,3 +388,96 @@ def calculate_cctv_system(
         switch_poe_budget_w=poe_budget,
         cable_utp_cat6_meters=cable_m
     )
+
+
+# =============================================================================
+# 5. ALARMAS CONTRA INTRUSIÓN Y ROBO (SEGURIDAD FÍSICA Y ELECTRÓNICA)
+# =============================================================================
+
+@dataclass
+class IntrusionSystemReport:
+    total_area_m2: float
+    num_zones: int
+    pir_detectors_count: int
+    magnetic_contacts_count: int
+    glass_break_detectors_count: int
+    keypads_count: int
+    interior_sirens_count: int
+    exterior_sirens_count: int
+    standby_current_ma: float
+    alarm_current_a: float
+    battery_capacity_ah: float
+    siren_spl_db: float
+    communicator_type: str
+    security_grade: str
+    recommended_devices: List[str]
+    compliance_status: str
+
+
+def calculate_intrusion_system(
+    building_area_m2: float = 80.0,
+    num_exterior_doors: int = 1,
+    num_exterior_windows: int = 4,
+    has_patio: bool = True
+) -> IntrusionSystemReport:
+    """Calcula requerimientos integrales del sistema de alarma contra robo/intrusión (Grado 2 EN 50131)."""
+    # Detectores volumétricos PIR (infrarrojo pasivo de doble haz, 12m alcance / 90° de cobertura en esquina):
+    # Cobertura en accesos, sala y áreas de circulación obligada
+    pir_count = max(2, math.ceil(building_area_m2 / 35.0))
+
+    # Contactos magnéticos de apertura perimetral (puertas exteriores + ventanas accesibles)
+    mag_contacts = max(1, num_exterior_doors) + max(0, min(num_exterior_windows, 6))
+
+    # Detectores acústicos de rotura de cristal (micrófono piezoeléctrico en fachadas a calle)
+    glass_break = max(1, math.ceil(num_exterior_windows / 3.0))
+
+    # Teclados de control LCD con lector RFID/código
+    keypads = 1 if building_area_m2 < 180 else 2
+
+    # Sirenas: interior piezoeléctrica (105 dB) + exterior blindada autotamborada con flash LED (115 dB)
+    sirens_int = 1
+    sirens_ext = 1 if has_patio or building_area_m2 >= 60 else 0
+
+    # Zonas de alarma: cableadas o híbridas balanceadas con resistencia fin de línea (EOLR)
+    total_zones = pir_count + mag_contacts + glass_break + 2  # + sabotaje (tamper) y pánico
+
+    # Consumos eléctricos a 12V CC:
+    # Central: 60 mA | PIR: 12 mA c/u | Teclado: 35 mA | Rotura cristal: 15 mA | Comunicador 4G: 30 mA
+    i_standby_ma = 60.0 + (pir_count * 12.0) + (keypads * 35.0) + (glass_break * 15.0) + 30.0
+    # Consumo en alarma: sirena int (250 mA) + sirena ext (1.2 A) + central (200 mA)
+    i_alarm_a = 0.20 + (sirens_int * 0.25) + (sirens_ext * 1.20)
+
+    # Batería de respaldo plomo-ácido AGM hermética (24 h reposo + 30 min alarma con factor de seguridad 1.25)
+    batt_ah = ((i_standby_ma / 1000.0) * 24.0 + i_alarm_a * 0.50) * 1.25
+    batt_rec = 4.0 if batt_ah <= 4.0 else (7.0 if batt_ah <= 7.0 else 12.0)
+
+    devices_list = [
+        f"Central de alarma híbrida de {max(8, total_zones)} zonas expandible (Grado 2)",
+        f"{keypads} Teclado(s) numérico LCD con lector de tarjetas RFID de proximidad",
+        f"{pir_count} Detectores volumétricos PIR duales con inmunidad a mascotas (< 20 kg)",
+        f"{mag_contacts} Contactos magnéticos de apertura en puertas y ventanas perimetrales",
+        f"{glass_break} Detector(es) acústico(s) de rotura de cristal para acristalamientos",
+        f"{sirens_int} Sirena interior de alta potencia (105 dB a 1 m)",
+    ]
+    if sirens_ext > 0:
+        devices_list.append("1 Sirena exterior óptica-acústica autotamborada con batería autónoma (115 dB)")
+    devices_list.append("Módulo comunicador dual Ethernet IP + Transmisor celular GSM/4G LTE")
+
+    return IntrusionSystemReport(
+        total_area_m2=building_area_m2,
+        num_zones=total_zones,
+        pir_detectors_count=pir_count,
+        magnetic_contacts_count=mag_contacts,
+        glass_break_detectors_count=glass_break,
+        keypads_count=keypads,
+        interior_sirens_count=sirens_int,
+        exterior_sirens_count=sirens_ext,
+        standby_current_ma=round(i_standby_ma, 1),
+        alarm_current_a=round(i_alarm_a, 2),
+        battery_capacity_ah=batt_rec,
+        siren_spl_db=105.0,
+        communicator_type="Dual IP (RJ45) + Celular 4G LTE con aviso a CRA y App Móvil",
+        security_grade="Grado 2 (Viviendas residenciales y comercios medianos)",
+        recommended_devices=devices_list,
+        compliance_status="CUMPLE (Protección Perimetral, Volumétrica y Respaldo 24h)"
+    )

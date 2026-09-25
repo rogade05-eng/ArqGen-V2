@@ -323,13 +323,27 @@ class GenerativeArchitectureService:
         cam1 = sec.add_device(net_cctv.code, "CAMERA", 0.10, 0.10, name="Cámara 1: Acceso Portal (Domo 4MP)")
         cam2 = sec.add_device(net_cctv.code, "CAMERA", round(W - 0.2, 2), round(D - 0.2, 2), name="Cámara 2: Fondo Patio (Bullet 4MP)")
 
+        # --- F. ALARMA CONTRA INTRUSIÓN Y ROBO (INTRUSION) ---
+        net_int = sec.create_network("Alarma Contra Intrusión y Robo", "INTRUSION")
+        int_panel = sec.add_device(net_int.code, "INTRUSION_PANEL", 0.40, 0.60, name="Central Intrusión Grado 2")
+        keypad = sec.add_device(net_int.code, "KEYPAD", 0.90, 0.30, name="Teclado Numérico LCD Acceso")
+        mag_contact = sec.add_device(net_int.code, "MAGNETIC_CONTACT", 0.90, 0.05, name="Contacto Magnético Puerta Principal", attrs={"zone": "ZONA-PERIMETRAL", "external": True})
+        siren_int = sec.add_device(net_int.code, "SIREN", 0.40, 2.00, name="Sirena Interior 105 dB", attrs={"zone": "ZONA-SIRENAS"})
+        int_devices = 4
+        for s in spaces:
+            if any(k in s.name.upper() for k in ["SALA", "PASILLO", "COMEDOR"]):
+                cx, cy = centroid(s.boundary)
+                sec.add_device(net_int.code, "PIR", cx, cy, name=f"Detector PIR {s.name}", attrs={"zone": "ZONA-VOLUMETRICA"})
+                int_devices += 1
+
         return {
             "electrical_nodes": elec_nodes_count,
             "hydraulic_nodes": 6,
             "sanitary_nodes": 4,
             "sadi_devices": sadi_devices,
             "cctv_cameras": 2,
-            "networks_created": [net_elec.code, net_water.code, net_drain.code, net_fire.code, net_cctv.code],
+            "intrusion_devices": int_devices,
+            "networks_created": [net_elec.code, net_water.code, net_drain.code, net_fire.code, net_cctv.code, net_int.code],
         }
 
     def _solve_layout(self, template_key: str, W: float, D: float) -> List[Dict[str, Any]]:

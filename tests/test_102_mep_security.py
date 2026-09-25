@@ -97,6 +97,21 @@ class TestMEPSecurityEngine(unittest.TestCase):
         self.assertGreaterEqual(rep.switch_poe_budget_w, 50.0)
         self.assertGreater(rep.cable_utp_cat6_meters, 50.0)
 
+    def test_intrusion_alarm_system(self):
+        from engines.mep_security_engine import calculate_intrusion_system
+        rep = calculate_intrusion_system(building_area_m2=85.0, num_exterior_doors=2, num_exterior_windows=5)
+        self.assertEqual(rep.total_area_m2, 85.0)
+        self.assertGreaterEqual(rep.pir_detectors_count, 2)
+        self.assertGreaterEqual(rep.magnetic_contacts_count, 7)
+        self.assertGreaterEqual(rep.glass_break_detectors_count, 1)
+        self.assertEqual(rep.keypads_count, 1)
+        self.assertEqual(rep.interior_sirens_count, 1)
+        self.assertEqual(rep.exterior_sirens_count, 1)
+        self.assertGreaterEqual(rep.battery_capacity_ah, 4.0)
+        self.assertIn("Grado 2", rep.security_grade)
+        self.assertIn("CUMPLE", rep.compliance_status)
+        self.assertGreaterEqual(len(rep.recommended_devices), 5)
+
 
 class TestGenerativeArchitectureMEP(unittest.TestCase):
     """Pruebas de generación arquitectónica coordinada con redes MEP y Seguridad."""
