@@ -33,6 +33,8 @@ TOOLTIPS: Dict[str, str] = {
     "zoom_out": "Aleja la vista. También la rueda del ratón sobre el plano.",
     "new_object": "Crea un objeto nuevo: local, muro, puerta, nivel… "
                   "según tu disciplina activa.",
+    "generative_wizard": "Abre el asistente de 2 pasos para generar una planta "
+                         "arquitectónica automática con todos los requerimientos.",
     "edit": "Cambia un dato del objeto seleccionado (por ejemplo, el "
             "espesor de un muro).",
     "search_field": "Elige por qué buscar: código, nombre, tipo, nivel…",

@@ -155,6 +155,22 @@ class ARQGenWindow(_BaseWindow):
                            command=self.delete_selection)
         menubar.add_cascade(label="Editar", menu=m_edit)
 
+        m_design = tk.Menu(menubar, **menu_kwargs())
+        m_design.add_command(label="⚡ Asistente de Generación Arquitectónica…",
+                             command=self.open_generative_wizard)
+        m_design.add_separator()
+        m_design.add_command(label="Plantilla: Vivienda 1 Dormitorio",
+                             command=lambda: self.generate_from_template("VIVIENDA_1D"))
+        m_design.add_command(label="Plantilla: Vivienda 2 Dormitorios",
+                             command=lambda: self.generate_from_template("VIVIENDA_2D"))
+        m_design.add_command(label="Plantilla: Vivienda 3 Dormitorios",
+                             command=lambda: self.generate_from_template("VIVIENDA_3D"))
+        m_design.add_command(label="Plantilla: Oficinas Administrativas",
+                             command=lambda: self.generate_from_template("OFICINA_ADMIN"))
+        m_design.add_command(label="Plantilla: Consultorio Médico",
+                             command=lambda: self.generate_from_template("CONSULTORIO_SALUD"))
+        menubar.add_cascade(label="Diseño", menu=m_design)
+
         m_view = tk.Menu(menubar, **menu_kwargs())
         m_view.add_command(label="Zoom +\t+", command=lambda: self.zoom(1.25))
         m_view.add_command(label="Zoom −\t−", command=lambda: self.zoom(0.8))
@@ -221,9 +237,12 @@ class ARQGenWindow(_BaseWindow):
 
         # Botones de edición rápida (FASE 90.1)
         self._tip(ttk.Button(bar, text="+ Objeto",
-                             style="Accent.TButton",
                              command=self.new_object_dialog),
                   "new_object").pack(side="left", padx=(12, 2))
+        self._tip(ttk.Button(bar, text="⚡ Generar Planta (Asistente)",
+                             style="Accent.TButton",
+                             command=self.open_generative_wizard),
+                  "generative_wizard").pack(side="left", padx=2)
         self._tip(ttk.Button(bar, text="Editar",
                              command=self.edit_property_dialog),
                   "edit").pack(side="left", padx=2)
@@ -521,7 +540,51 @@ class ARQGenWindow(_BaseWindow):
             self._draw_grid(width, height)
         self._draw_primitives(width, height)
         if not self._primitives:
-            self._draw_welcome(width, height)
+            level_name = self.level_var.get()
+            if level_name and level_name != "(todos)":
+                self._draw_empty_level_card(width, height, level_name)
+            else:
+                self._draw_welcome(width, height)
+
+    def _draw_empty_level_card(self, width: int, height: int, level_name: str) -> None:
+        """Tarjeta interactiva cuando se selecciona un nivel vacío."""
+        card_w, card_h = 520, 240
+        x0, y0 = width // 2 - card_w // 2, height // 2 - card_h // 2
+        card_tag = "card_empty_lvl"
+        self.canvas.create_rectangle(
+            x0, y0, x0 + card_w, y0 + card_h,
+            fill=CANVAS_DARK["welcome_card"],
+            outline=CANVAS_DARK["accent"], width=2, tags=(card_tag, "clickable"))
+        cx = width // 2
+        self.canvas.create_text(
+            cx, y0 + 36, text=f"Nivel «{level_name}» (Sin elementos)",
+            fill=CANVAS_DARK["welcome_title"],
+            font=("TkDefaultFont", 13, "bold"), tags=(card_tag,))
+        msg = (
+            f"El nivel «{level_name}» está seleccionado pero aún no contiene muros ni locales.\n\n"
+            "Puedes usar el Asistente de Diseño Generativo para generar su planta\n"
+            "automática con locales, requerimientos climáticos, estructura y MEP,\n"
+            "o añadir elementos manualmente con «+ Objeto».")
+        self.canvas.create_text(
+            cx, y0 + 105, text=msg,
+            fill=CANVAS_DARK["space_text"], font=("TkDefaultFont", 10),
+            justify="center", tags=(card_tag,))
+
+        # Botón visual de acción
+        btn_w, btn_h = 340, 36
+        bx0, by0 = cx - btn_w // 2, y0 + card_h - 55
+        self.canvas.create_rectangle(
+            bx0, by0, bx0 + btn_w, by0 + btn_h,
+            fill="#007acc", outline="#005999", width=1, tags=(card_tag, "btn_wizard"))
+        self.canvas.create_text(
+            cx, by0 + btn_h // 2,
+            text="⚡ Abrir Asistente Generativo para este nivel",
+            fill="#ffffff", font=("TkDefaultFont", 10, "bold"), tags=(card_tag, "btn_wizard"))
+
+        def _on_card_click(_event=None):
+            self.open_generative_wizard(target_level=level_name)
+
+        self.canvas.tag_bind(card_tag, "<Button-1>", _on_card_click)
 
     def _draw_welcome(self, width: int, height: int) -> None:
         """Tarjeta de bienvenida cuando el lienzo está vacío.
@@ -1115,6 +1178,19 @@ class ARQGenWindow(_BaseWindow):
                 return
             dialog.destroy()
             self.refresh_all()
+            if entity_type == "LEVEL":
+                lvl_name = getattr(entity, "name", "") or getattr(entity, "code", "")
+                self.level_var.set(lvl_name)
+                self.refresh_all(fit=True)
+                if messagebox.askyesno(
+                    "Nivel Creado",
+                    f"Se ha creado el nivel «{lvl_name}».\n\n"
+                    "¿Deseas abrir el Asistente Generativo para diseñar automáticamente "
+                    "su planta arquitectónica con todos sus requerimientos (locales, clima, estructura, MEP)?",
+                    parent=self
+                ):
+                    self.open_generative_wizard(target_level=lvl_name)
+                    return
             self._say(f"Creado {entity_type} "
                       f"{getattr(entity, 'code', '')}.",
                       "Sigue construyendo con «+ Objeto» o edítalo con "
@@ -1185,6 +1261,38 @@ class ARQGenWindow(_BaseWindow):
             f"{self.ctx.project.currency}.",
             "Echa un vistazo a las disciplinas «Cantidades» y "
             "«Presupuesto» del explorador")
+
+    def open_generative_wizard(self, target_level: str = "") -> None:
+        """Abre el asistente de diseño generativo automático en 2 pasos."""
+        from ui.generative_wizard import GenerativeWizardDialog
+        curr = target_level or (self.level_var.get() if self.level_var.get() != "(todos)" else "")
+        GenerativeWizardDialog(self, self.ctx, current_level=curr, on_generated=self._on_wizard_generated)
+
+    def _on_wizard_generated(self, result: Dict[str, Any]) -> None:
+        """Callback ejecutado tras completar la generación de la planta arquitectónica."""
+        level_name = result.get("level_name", "Planta Baja")
+        self.refresh_levels()
+        self.level_var.set(level_name)
+        self.refresh_all(fit=True)
+        self.fit_view()
+        summary = result.get("summary", {})
+        self._say(
+            f"⚡ Planta de «{level_name}» generada: {summary.get('spaces', 0)} locales, "
+            f"{summary.get('walls', 0)} muros, {summary.get('doors', 0)} puertas, "
+            f"{summary.get('windows', 0)} ventanas.",
+            "Visualiza la planta en el lienzo, edita entidades o exporta a DXF/IFC/XLSX")
+
+    def generate_from_template(self, template_key: str) -> None:
+        """Generación directa a partir de una plantilla arquitectónica típica."""
+        from services.generative_architecture_service import GenerativeArchitectureService
+        curr_lvl = self.level_var.get()
+        target_lvl = curr_lvl if curr_lvl and curr_lvl != "(todos)" else "Planta Baja"
+        try:
+            gen = GenerativeArchitectureService(self.ctx)
+            result = gen.generate(template_key=template_key, level_ref=target_lvl, clean_level=True)
+            self._on_wizard_generated(result)
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Generador", str(exc), parent=self)
 
     def export_report(self) -> None:
         from services.documentation_service import DocumentationService

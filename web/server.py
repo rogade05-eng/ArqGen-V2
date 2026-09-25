@@ -83,28 +83,70 @@ class ArqGenWebHandler(SimpleHTTPRequestHandler):
             return json.loads(raw)
         return {}
 
+    def do_HEAD(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        if path in ("/api/download/zip", "/download/ArqGen_V2_Windows_Source_Package.zip", "/ArqGen_V2_Windows_Source_Package.zip"):
+            zip_path = os.path.join(PROJECT_ROOT, "ArqGen_V2_Windows_Source_Package.zip")
+            if os.path.exists(zip_path):
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Length", str(os.path.getsize(zip_path)))
+                self.end_headers()
+                return
+        super().do_HEAD()
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         qs = urllib.parse.parse_qs(parsed.query)
 
+        # 0. API: Niveles del proyecto
+        if path == "/api/levels":
+            try:
+                levels = ACTIVE_CTX.architecture.list("LEVEL", ACTIVE_CTX.project.id)
+                res = [{
+                    "id": lv.id, "code": lv.code, "name": lv.name or lv.code,
+                    "elevation_m": lv.elevation_m, "height_m": lv.height_m
+                } for lv in levels]
+                self._send_json({"levels": res})
+            except Exception as e:
+                self._send_json({"error": str(e)}, status=500)
+            return
+
         # 1. API: Estado actual del modelo (locales, muros, vanos, redes MEP)
         if path == "/api/project/state":
             try:
+                req_level_id = qs.get("level_id", [None])[0]
+                levels = ACTIVE_CTX.architecture.list("LEVEL", ACTIVE_CTX.project.id)
+
                 spaces = ACTIVE_CTX.architecture.list("SPACE", ACTIVE_CTX.project.id)
                 walls = ACTIVE_CTX.architecture.list("WALL", ACTIVE_CTX.project.id)
                 doors = ACTIVE_CTX.architecture.list("DOOR", ACTIVE_CTX.project.id)
                 windows = ACTIVE_CTX.architecture.list("WINDOW", ACTIVE_CTX.project.id)
 
+                if req_level_id and req_level_id != "all":
+                    spaces = [s for s in spaces if getattr(s, "level_id", "") == req_level_id]
+                    walls = [w for w in walls if getattr(w, "level_id", "") == req_level_id]
+                    doors = [d for d in doors if getattr(d, "level_id", "") == req_level_id]
+                    windows = [w for w in windows if getattr(w, "level_id", "") == req_level_id]
+
                 # Cargar redes, nodos y tramos MEP
                 networks = ACTIVE_CTX.installations.list("NETWORK", ACTIVE_CTX.project.id)
                 net_map = {n.id: n.system for n in networks}
                 nodes = ACTIVE_CTX.installations.list("NODE", ACTIVE_CTX.project.id)
+                if req_level_id and req_level_id != "all":
+                    nodes = [nd for nd in nodes if getattr(nd, "level_id", "") == req_level_id or not getattr(nd, "level_id", "")]
                 segs = ACTIVE_CTX.installations.list("SEGMENT", ACTIVE_CTX.project.id)
                 node_pos = {nd.id: (nd.x, nd.y) for nd in nodes}
 
                 data = {
                     "project_name": ACTIVE_CTX.project.name,
+                    "levels": [{
+                        "id": lv.id, "code": lv.code, "name": lv.name or lv.code,
+                        "elevation_m": lv.elevation_m, "height_m": lv.height_m
+                    } for lv in levels],
+                    "active_level_id": req_level_id or (levels[0].id if levels else ""),
                     "spaces": [{
                         "id": s.id, "code": s.code, "name": s.name,
                         "type": s.space_type,
@@ -235,23 +277,46 @@ class ArqGenWebHandler(SimpleHTTPRequestHandler):
         path = parsed.path
         body = self._read_json()
 
-        # 1. Generador de Arquitectura Sin IA
+        # 1. Generador de Arquitectura Sin IA Personalizado (Asistente 2 Pasos)
+        if path == "/api/generate/custom":
+            try:
+                gen = GenerativeArchitectureService(ACTIVE_CTX)
+                result = gen.generate_custom(body)
+                self._send_json(result)
+            except Exception as e:
+                self._send_json({"error": str(e)}, status=500)
+            return
+
+        # 2. Crear Nivel
+        if path == "/api/levels/create":
+            try:
+                from services.architecture_service import ArchitectureService
+                arch = ArchitectureService(ACTIVE_CTX)
+                name = body.get("name", "Nuevo Nivel")
+                elevation = float(body.get("elevation_m", 0.0) or 0.0)
+                height = float(body.get("height_m", 2.80) or 2.80)
+                lvl = arch.create_level(name=name, elevation_m=elevation, height_m=height)
+                ACTIVE_CTX.commit()
+                self._send_json({
+                    "status": "success",
+                    "level": {"id": lvl.id, "code": lvl.code, "name": lvl.name, "elevation_m": lvl.elevation_m}
+                })
+            except Exception as e:
+                self._send_json({"error": str(e)}, status=500)
+            return
+
+        # 3. Generador de Arquitectura Sin IA (Plantillas predefinidas)
         if path == "/api/generate":
-            global ACTIVE_CTX
             template = body.get("template", "VIVIENDA_2D")
             width = body.get("width")
             depth = body.get("depth")
             include_mep = body.get("include_mep", True)
+            level_name = body.get("level_name")
 
             try:
-                # Reiniciar proyecto temporal limpio
-                ACTIVE_CTX.close()
-                if os.path.exists(ACTIVE_PROJ_PATH):
-                    os.remove(ACTIVE_PROJ_PATH)
-                ACTIVE_CTX = APP_CTX.create_project(ACTIVE_PROJ_PATH, name=f"Vivienda Generada ({template})")
-
                 gen = GenerativeArchitectureService(ACTIVE_CTX)
-                result = gen.generate(template_key=template, width=width, depth=depth, include_mep=include_mep)
+                result = gen.generate(template_key=template, width=width, depth=depth,
+                                     include_mep=include_mep, level_ref=level_name, clean_level=True)
                 self._send_json(result)
             except Exception as e:
                 self._send_json({"error": str(e)}, status=500)

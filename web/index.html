@@ -114,6 +114,17 @@
           <span class="font-semibold text-gray-200" id="cad-proj-title">Vivienda Estándar 2 Dormitorios</span>
           <span id="cad-dimensions" class="bg-dark-hover px-2 py-0.5 rounded text-blue-400 border border-dark-border">8.50 x 9.50 m</span>
           <span id="cad-area" class="bg-dark-hover px-2 py-0.5 rounded text-emerald-400 border border-dark-border">80.75 m²</span>
+
+          <!-- Nivel Selector & Botón Asistente -->
+          <div class="flex items-center gap-2 border-l border-dark-border pl-3">
+            <span class="text-gray-300 font-semibold">Nivel:</span>
+            <select id="levelSelect" onchange="onLevelChange()" class="bg-dark-base border border-dark-border rounded px-2 py-1 text-blue-300 font-bold focus:outline-none focus:border-blue-500">
+              <option value="">Planta Baja</option>
+            </select>
+            <button onclick="openWizardModal()" class="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded shadow flex items-center gap-1.5 transition">
+              <span>⚡</span> Asistente Generativo (2 Pasos)
+            </button>
+          </div>
         </div>
         <!-- LAYER TOGGLES -->
         <div class="flex items-center gap-2 bg-dark-base px-2.5 py-1 rounded-lg border border-dark-border text-[11px]">
@@ -146,7 +157,15 @@
     <!-- 2. VIEW: 3D BIM VIEWER -->
     <div id="view-3d" class="flex-1 flex flex-col h-full hidden">
       <div class="bg-dark-card/60 backdrop-blur border-b border-dark-border px-4 py-2 flex items-center justify-between text-xs text-gray-400">
-        <span class="font-semibold text-gray-200">Visor Tridimensional BIM (Three.js WebGL)</span>
+        <div class="flex items-center gap-3">
+          <span class="font-semibold text-gray-200">Visor Tridimensional BIM (Three.js WebGL)</span>
+          <div class="flex items-center gap-2 border-l border-dark-border pl-3">
+            <span class="text-gray-300 font-semibold">Nivel:</span>
+            <select id="levelSelect3d" onchange="onLevelChange3d()" class="bg-dark-base border border-dark-border rounded px-2 py-1 text-blue-300 font-bold focus:outline-none focus:border-blue-500">
+              <option value="">Planta Baja</option>
+            </select>
+          </div>
+        </div>
         <div class="flex items-center gap-2 text-gray-400 text-xs">
           <span>Click izq: Rotar</span> • <span>Click der: Desplazar</span> • <span>Rueda: Zoom</span>
         </div>
@@ -171,6 +190,8 @@
               <option value="VIVIENDA_1D">Vivienda Económica 1D (~52 m²)</option>
               <option value="VIVIENDA_2D" selected>Vivienda Estándar 2D (~80 m²)</option>
               <option value="VIVIENDA_3D">Vivienda Familiar 3D (~115 m²)</option>
+              <option value="OFICINA_ADMIN">Oficinas Administrativas (~90 m²)</option>
+              <option value="CONSULTORIO_SALUD">Consultorio Médico / Salud (~80 m²)</option>
             </select>
           </div>
 
@@ -206,7 +227,11 @@
         </div>
 
         <button onclick="triggerGenerate()" id="btn-generate-run" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition">
-          <span>⚡</span> Generar Planta Sin IA
+          <span>⚡</span> Generar Rápido (Plantilla)
+        </button>
+
+        <button onclick="openWizardModal()" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 hover:from-indigo-500 hover:to-blue-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2 transition text-xs">
+          <span>✨</span> Asistente Personalizado (2 Pasos)
         </button>
 
         <div class="mt-auto bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-xs text-blue-300">
@@ -783,16 +808,52 @@
     }
 
     // -- Load Project State -----------------------------------------------------
-    async function loadProjectState() {
+    async function loadProjectState(levelId) {
       try {
-        const res = await fetch('/api/project/state');
+        const url = (levelId && levelId !== '') ? `/api/project/state?level_id=${encodeURIComponent(levelId)}` : '/api/project/state';
+        const res = await fetch(url);
         projectState = await res.json();
+        updateLevelSelectors(projectState.levels, projectState.active_level_id);
         updateUI();
         drawCAD();
         if (threeInitialized) updateThreeScene();
       } catch (e) {
         console.error('Error cargando estado:', e);
       }
+    }
+
+    function updateLevelSelectors(levels, activeId) {
+      ['levelSelect', 'levelSelect3d'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.innerHTML = '';
+        if (!levels || levels.length === 0) {
+          sel.innerHTML = '<option value="">(Sin niveles)</option>';
+          return;
+        }
+        levels.forEach(lv => {
+          const opt = document.createElement('option');
+          opt.value = lv.id;
+          opt.textContent = `${lv.name || lv.code} (${lv.elevation_m}m)`;
+          if (lv.id === activeId) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        const optAll = document.createElement('option');
+        optAll.value = 'all';
+        optAll.textContent = 'Ver Todos los Niveles';
+        if (activeId === 'all') optAll.selected = true;
+        sel.appendChild(optAll);
+      });
+    }
+
+    function onLevelChange() {
+      const sel = document.getElementById('levelSelect');
+      if (sel) loadProjectState(sel.value);
+    }
+
+    function onLevelChange3d() {
+      const sel = document.getElementById('levelSelect3d');
+      if (sel) loadProjectState(sel.value);
     }
 
     function updateUI() {
@@ -820,6 +881,20 @@
     function drawCAD() {
       if (!ctx || !projectState) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if ((!projectState.spaces || projectState.spaces.length === 0) &&
+          (!projectState.walls || projectState.walls.length === 0)) {
+        ctx.save();
+        ctx.fillStyle = "#94A3B8";
+        ctx.font = "bold 15px ui-sans-serif, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Nivel seleccionado sin elementos arquitectónicos.", canvas.width / 2, canvas.height / 2 - 20);
+        ctx.font = "13px ui-sans-serif, system-ui, sans-serif";
+        ctx.fillStyle = "#60A5FA";
+        ctx.fillText("👉 Haz clic en «⚡ Asistente Generativo (2 Pasos)» para generar su planta automáticamente", canvas.width / 2, canvas.height / 2 + 15);
+        ctx.restore();
+        return;
+      }
 
       ctx.save();
       ctx.translate(panX, panY);
@@ -1796,6 +1871,644 @@
         </div>
       `;
     }
+
+    // =========================================================================
+    // ASISTENTE DE DISEÑO GENERATIVO EN 2 PASOS (MODAL JS)
+    // =========================================================================
+    let wizardRooms = [];
+    let wizardRelationships = [];
+    let wizardStep = 1;
+
+    const PRESETS = {
+      VIVIENDA_1D: [
+        { name: "Portal", space_type: "PORCH", zone_kind: "SOCIAL", target_area: 4.5, has_window: false },
+        { name: "Sala Comedor", space_type: "LIVING", zone_kind: "SOCIAL", target_area: 18.0, has_window: true },
+        { name: "Cocina", space_type: "KITCHEN", zone_kind: "SERVICIO", target_area: 7.0, has_window: true },
+        { name: "Patio Servicio", space_type: "SERVICE", zone_kind: "SERVICIO", target_area: 4.5, has_window: false },
+        { name: "Dormitorio 1", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 12.0, has_window: true },
+        { name: "Baño", space_type: "BATHROOM", zone_kind: "SERVICIO", target_area: 4.0, has_window: true },
+      ],
+      VIVIENDA_2D: [
+        { name: "Portal", space_type: "PORCH", zone_kind: "SOCIAL", target_area: 5.0, has_window: false },
+        { name: "Sala", space_type: "LIVING", zone_kind: "SOCIAL", target_area: 15.0, has_window: true },
+        { name: "Comedor", space_type: "DINING", zone_kind: "SOCIAL", target_area: 10.0, has_window: true },
+        { name: "Cocina", space_type: "KITCHEN", zone_kind: "SERVICIO", target_area: 8.0, has_window: true },
+        { name: "Patio Servicio", space_type: "SERVICE", zone_kind: "SERVICIO", target_area: 5.0, has_window: false },
+        { name: "Pasillo", space_type: "CORRIDOR", zone_kind: "SOCIAL", target_area: 3.5, has_window: false },
+        { name: "Dormitorio Principal", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 13.5, has_window: true },
+        { name: "Dormitorio 2", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 11.5, has_window: true },
+        { name: "Baño", space_type: "BATHROOM", zone_kind: "SERVICIO", target_area: 4.5, has_window: true },
+      ],
+      VIVIENDA_3D: [
+        { name: "Portal", space_type: "PORCH", zone_kind: "SOCIAL", target_area: 6.0, has_window: false },
+        { name: "Sala", space_type: "LIVING", zone_kind: "SOCIAL", target_area: 18.0, has_window: true },
+        { name: "Comedor", space_type: "DINING", zone_kind: "SOCIAL", target_area: 12.0, has_window: true },
+        { name: "Cocina", space_type: "KITCHEN", zone_kind: "SERVICIO", target_area: 9.5, has_window: true },
+        { name: "Patio Servicio", space_type: "SERVICE", zone_kind: "SERVICIO", target_area: 6.0, has_window: false },
+        { name: "Dormitorio Principal", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 14.5, has_window: true },
+        { name: "Baño Suite", space_type: "BATHROOM", zone_kind: "SERVICIO", target_area: 4.0, has_window: true },
+        { name: "Baño General", space_type: "BATHROOM", zone_kind: "SERVICIO", target_area: 4.5, has_window: true },
+        { name: "Dormitorio 2", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 12.0, has_window: true },
+        { name: "Dormitorio 3", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 10.5, has_window: true },
+      ],
+      OFICINA_ADMIN: [
+        { name: "Recepción", space_type: "PORCH", zone_kind: "SOCIAL", target_area: 12.0, has_window: true },
+        { name: "Sala de Juntas", space_type: "LIVING", zone_kind: "SOCIAL", target_area: 16.0, has_window: true },
+        { name: "Oficina Operativa", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 20.0, has_window: true },
+        { name: "Despacho Dirección", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 14.0, has_window: true },
+        { name: "Aseo General", space_type: "BATHROOM", zone_kind: "SERVICIO", target_area: 4.5, has_window: true },
+        { name: "Archivo Servidores", space_type: "SERVICE", zone_kind: "SERVICIO", target_area: 5.5, has_window: false },
+      ],
+      CONSULTORIO_SALUD: [
+        { name: "Sala de Espera", space_type: "LIVING", zone_kind: "SOCIAL", target_area: 14.0, has_window: true },
+        { name: "Recepción Admisión", space_type: "PORCH", zone_kind: "SOCIAL", target_area: 8.0, has_window: true },
+        { name: "Consultorio Principal", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 16.0, has_window: true },
+        { name: "Área de Examen", space_type: "BEDROOM", zone_kind: "PRIVADA", target_area: 10.0, has_window: true },
+        { name: "Baño Pacientes", space_type: "BATHROOM", zone_kind: "SERVICIO", target_area: 4.5, has_window: true },
+        { name: "Aseo Personal", space_type: "BATHROOM", zone_kind: "SERVICIO", target_area: 3.5, has_window: true },
+      ]
+    };
+
+    function openWizardModal(targetLevel) {
+      // Poblar selector de niveles
+      const lvlSel = document.getElementById('wiz-level-select');
+      lvlSel.innerHTML = '';
+      if (projectState && projectState.levels) {
+        projectState.levels.forEach(lv => {
+          const opt = document.createElement('option');
+          opt.value = lv.name || lv.code;
+          opt.textContent = `${lv.name || lv.code} (${lv.elevation_m}m)`;
+          lvlSel.appendChild(opt);
+        });
+      }
+      const optNew = document.createElement('option');
+      optNew.value = '__NEW__';
+      optNew.textContent = '(+ Crear nuevo nivel...)';
+      lvlSel.appendChild(optNew);
+
+      if (targetLevel && targetLevel !== 'all') {
+        lvlSel.value = targetLevel;
+      }
+      wizardOnLevelSelectChange();
+
+      if (wizardRooms.length === 0) {
+        wizardLoadPreset('VIVIENDA_2D');
+      }
+
+      wizardGoStep(1);
+      document.getElementById('wizardModal').classList.remove('hidden');
+    }
+
+    function closeWizardModal() {
+      document.getElementById('wizardModal').classList.add('hidden');
+    }
+
+    function wizardOnLevelSelectChange() {
+      const val = document.getElementById('wiz-level-select').value;
+      const box = document.getElementById('wiz-new-level-box');
+      if (val === '__NEW__') {
+        box.classList.remove('hidden');
+        document.getElementById('wiz-new-level-name').focus();
+      } else {
+        box.classList.add('hidden');
+      }
+    }
+
+    function wizardToggleFootprint() {
+      const auto = document.getElementById('wiz-auto-footprint').checked;
+      const manualDiv = document.getElementById('wiz-manual-footprint');
+      const w = document.getElementById('wiz-width');
+      const d = document.getElementById('wiz-depth');
+      if (auto) {
+        manualDiv.classList.add('opacity-50');
+        w.disabled = true;
+        d.disabled = true;
+      } else {
+        manualDiv.classList.remove('opacity-50');
+        w.disabled = false;
+        d.disabled = false;
+      }
+    }
+
+    function wizardGoStep(step) {
+      wizardStep = step;
+      const s1 = document.getElementById('wizardStep1');
+      const s2 = document.getElementById('wizardStep2');
+      const btnPrev = document.getElementById('btnWizardPrev');
+      const btnNext = document.getElementById('btnWizardNext');
+      const btnSubmit = document.getElementById('btnWizardSubmit');
+      const header = document.getElementById('wizardStepHeader');
+
+      if (step === 1) {
+        s1.classList.remove('hidden');
+        s2.classList.add('hidden');
+        btnPrev.classList.add('hidden');
+        btnNext.classList.remove('hidden');
+        btnSubmit.classList.add('hidden');
+        header.innerText = "[ PASO 1 DE 2: Requerimientos Generales y Locales ] ➔ Paso 2: Relaciones Espaciales y Especialidades";
+      } else {
+        if (wizardRooms.length === 0) {
+          alert('Por favor añade al menos un local al programa arquitectónico.');
+          return;
+        }
+        wizardPopulateRelSelectors();
+        wizardRenderRelationships();
+        s1.classList.add('hidden');
+        s2.classList.remove('hidden');
+        btnPrev.classList.remove('hidden');
+        btnNext.classList.add('hidden');
+        btnSubmit.classList.remove('hidden');
+        header.innerText = "Paso 1: Requerimientos Generales ➔ [ PASO 2 DE 2: Relaciones Espaciales y Especialidades ]";
+      }
+    }
+
+    function wizardLoadPreset(key) {
+      if (!PRESETS[key]) return;
+      wizardRooms = JSON.parse(JSON.stringify(PRESETS[key]));
+      wizardRenderRooms();
+      wizardAutoConnectDNA();
+    }
+
+    function wizardRenderRooms() {
+      const tbody = document.getElementById('wiz-rooms-tbody');
+      tbody.innerHTML = wizardRooms.map((r, i) => `
+        <tr class="hover:bg-dark-hover/40">
+          <td class="px-3 py-2 font-medium text-white">${r.name}</td>
+          <td class="px-3 py-2 text-gray-400 font-mono text-[11px]">${r.space_type}</td>
+          <td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${r.zone_kind === 'SOCIAL' ? 'bg-blue-500/20 text-blue-300' : r.zone_kind === 'SERVICIO' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-purple-500/20 text-purple-300'}">${r.zone_kind}</span></td>
+          <td class="px-3 py-2 font-mono text-emerald-400 text-right">${r.target_area.toFixed(1)} m²</td>
+          <td class="px-3 py-2 text-center">${r.has_window ? '<span class="text-emerald-400 font-bold">✓</span>' : '<span class="text-gray-500">✕</span>'}</td>
+          <td class="px-3 py-2 text-center">
+            <button onclick="wizardRemoveRoom(${i})" class="text-rose-400 hover:text-rose-300 font-bold px-1.5">✕</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function wizardAddRoom() {
+      const name = document.getElementById('wiz-add-name').value.trim();
+      const type = document.getElementById('wiz-add-type').value;
+      const zone = document.getElementById('wiz-add-zone').value;
+      const area = parseFloat(document.getElementById('wiz-add-area').value);
+      if (!name) {
+        alert('Escribe un nombre para el local.');
+        return;
+      }
+      if (isNaN(area) || area <= 0) {
+        alert('Área no válida.');
+        return;
+      }
+      wizardRooms.push({ name, space_type: type, zone_kind: zone, target_area: area, has_window: true });
+      document.getElementById('wiz-add-name').value = '';
+      wizardRenderRooms();
+    }
+
+    function wizardRemoveRoom(index) {
+      wizardRooms.splice(index, 1);
+      wizardRenderRooms();
+    }
+
+    function wizardPopulateRelSelectors() {
+      const sFrom = document.getElementById('wiz-rel-from');
+      const sTo = document.getElementById('wiz-rel-to');
+      sFrom.innerHTML = '';
+      sTo.innerHTML = '';
+      wizardRooms.forEach((r, idx) => {
+        const o1 = document.createElement('option');
+        o1.value = r.name;
+        o1.textContent = r.name;
+        sFrom.appendChild(o1);
+
+        const o2 = document.createElement('option');
+        o2.value = r.name;
+        o2.textContent = r.name;
+        sTo.appendChild(o2);
+      });
+      if (wizardRooms.length > 1) {
+        sTo.selectedIndex = 1;
+      }
+    }
+
+    function wizardRenderRelationships() {
+      const tbody = document.getElementById('wiz-rel-tbody');
+      const labelMap = {
+        DOOR: "Puerta Batiente",
+        OPENING: "Vano Libre / Arco",
+        WINDOW: "Ventana Interior",
+        OPEN_PLAN: "Espacio Integrado",
+        WALL: "Muro Divisorio"
+      };
+      tbody.innerHTML = wizardRelationships.map((rel, i) => `
+        <tr class="hover:bg-dark-hover/40">
+          <td class="px-3 py-2 font-medium text-white">${rel.from_room}</td>
+          <td class="px-3 py-2 font-medium text-white">${rel.to_room}</td>
+          <td class="px-3 py-2 text-cyan-300 font-medium">${labelMap[rel.connection_type] || rel.connection_type}</td>
+          <td class="px-3 py-2 text-center font-mono text-gray-300">${rel.element_size.toFixed(2)} m</td>
+          <td class="px-3 py-2 text-center">
+            <button onclick="wizardRemoveRelationship(${i})" class="text-rose-400 hover:text-rose-300 font-bold px-1.5">✕</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function wizardAddRelationship() {
+      const from = document.getElementById('wiz-rel-from').value;
+      const to = document.getElementById('wiz-rel-to').value;
+      const type = document.getElementById('wiz-rel-type').value;
+      const size = parseFloat(document.getElementById('wiz-rel-size').value) || 0.85;
+
+      if (!from || !to) return;
+      if (from === to) {
+        alert('No se puede asociar un local consigo mismo.');
+        return;
+      }
+      wizardRelationships.push({ from_room: from, to_room: to, connection_type: type, element_size: size });
+      wizardRenderRelationships();
+    }
+
+    function wizardRemoveRelationship(index) {
+      wizardRelationships.splice(index, 1);
+      wizardRenderRelationships();
+    }
+
+    function wizardAutoConnectDNA() {
+      wizardRelationships = [];
+      const names = wizardRooms.map(r => r.name);
+      function findN(hint) {
+        return names.find(n => n.toLowerCase().includes(hint.toLowerCase()));
+      }
+      const portal = findN('portal') || findN('recepc') || findN('espera');
+      const sala = findN('sala');
+      const comedor = findN('comedor') || findN('juntas');
+      const cocina = findN('cocina') || findN('oficina');
+      const pasillo = findN('pasillo') || findN('distrib');
+      const patio = findN('patio') || findN('archivo');
+      const bano = findN('baño') || findN('aseo');
+
+      if (portal && sala) wizardRelationships.push({ from_room: portal, to_room: sala, connection_type: 'DOOR', element_size: 0.95 });
+      if (sala && comedor && sala !== comedor) wizardRelationships.push({ from_room: sala, to_room: comedor, connection_type: 'OPENING', element_size: 1.60 });
+      if (comedor && cocina) wizardRelationships.push({ from_room: comedor, to_room: cocina, connection_type: 'DOOR', element_size: 0.85 });
+      else if (sala && cocina) wizardRelationships.push({ from_room: sala, to_room: cocina, connection_type: 'DOOR', element_size: 0.85 });
+      if (cocina && patio) wizardRelationships.push({ from_room: cocina, to_room: patio, connection_type: 'DOOR', element_size: 0.80 });
+
+      const hub = pasillo || sala || comedor;
+      names.forEach(n => {
+        const low = n.toLowerCase();
+        if (low.includes('dormitorio') || low.includes('despacho') || low.includes('consultorio')) {
+          if (hub) wizardRelationships.push({ from_room: hub, to_room: n, connection_type: 'DOOR', element_size: 0.85 });
+        }
+      });
+      if (bano && hub) wizardRelationships.push({ from_room: hub, to_room: bano, connection_type: 'DOOR', element_size: 0.75 });
+
+      wizardRenderRelationships();
+    }
+
+    async function wizardExecuteGenerate() {
+      const btn = document.getElementById('btnWizardSubmit');
+      btn.innerText = '⏳ Generando planta arquitectónica...';
+      btn.disabled = true;
+
+      let lvlName = document.getElementById('wiz-level-select').value;
+      if (lvlName === '__NEW__') {
+        lvlName = document.getElementById('wiz-new-level-name').value.trim();
+        if (!lvlName) {
+          alert('Por favor escribe un nombre para el nuevo nivel.');
+          btn.innerText = '⚡ GENERAR PLANTA ARQUITECTÓNICA AUTOMÁTICA';
+          btn.disabled = false;
+          return;
+        }
+      }
+
+      const autoFoot = document.getElementById('wiz-auto-footprint').checked;
+      const w = autoFoot ? null : parseFloat(document.getElementById('wiz-width').value);
+      const d = autoFoot ? null : parseFloat(document.getElementById('wiz-depth').value);
+
+      const payload = {
+        level_name: lvlName,
+        story_height: parseFloat(document.getElementById('wiz-height').value) || 2.80,
+        building_type: document.getElementById('wiz-bldg-type').value,
+        width: w,
+        depth: d,
+        rooms: wizardRooms,
+        relationships: wizardRelationships,
+        climatic: {
+          orientation: document.getElementById('wiz-orient').value,
+          cross_ventilation: document.getElementById('wiz-cross-vent').checked,
+          solar_shading: document.getElementById('wiz-solar-shading').checked,
+        },
+        structural: {
+          system: document.getElementById('wiz-struct-system').value,
+          wall_ext_th: parseFloat(document.getElementById('wiz-wall-ext').value) || 0.20,
+          wall_int_th: parseFloat(document.getElementById('wiz-wall-int').value) || 0.15,
+        },
+        hydraulic_sanitary: {
+          wet_core_cluster: document.getElementById('wiz-wet-core').checked,
+          water_supply: document.getElementById('wiz-water-supply').value,
+        },
+        security: {
+          fire_sadi: document.getElementById('wiz-sadi').checked,
+          intrusion_grade2: document.getElementById('wiz-intrusion').checked,
+          cctv: document.getElementById('wiz-cctv').checked,
+          power_network: document.getElementById('wiz-power').checked,
+        },
+        clean_level: true
+      };
+
+      try {
+        const res = await fetch('/api/generate/custom', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.error) {
+          alert('Error en generación: ' + result.error);
+        } else {
+          closeWizardModal();
+          // Cargar el nivel generado
+          await loadProjectState(result.level_id);
+          switchTab('2d');
+          resetZoom();
+        }
+      } catch (e) {
+        alert('Error conectando al servidor: ' + e);
+      } finally {
+        btn.innerText = '⚡ GENERAR PLANTA ARQUITECTÓNICA AUTOMÁTICA';
+        btn.disabled = false;
+      }
+    }
+  </script>
+
+  <!-- MODAL ASISTENTE GENERATIVO EN 2 PASOS -->
+  <div id="wizardModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="max-w-4xl w-full bg-[#16191F] border border-dark-border rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+      <!-- Header -->
+      <div class="px-6 py-4 bg-dark-card border-b border-dark-border flex items-center justify-between shrink-0">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">⚡</span>
+            <h2 class="text-lg font-bold text-white">Asistente de Diseño Generativo de Arquitectura (Sin IA)</h2>
+            <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Algorítmico</span>
+          </div>
+          <p id="wizardStepHeader" class="text-xs text-blue-400 font-semibold mt-0.5">
+            [ PASO 1 DE 2: Requerimientos Generales y Locales ] ➔ Paso 2: Relaciones Espaciales y Especialidades
+          </p>
+        </div>
+        <button onclick="closeWizardModal()" class="text-gray-400 hover:text-white text-lg font-bold p-1">✕</button>
+      </div>
+
+      <!-- Step 1 Container -->
+      <div id="wizardStep1" class="flex-1 overflow-y-auto p-6 space-y-5">
+        <!-- Parámetros Generales -->
+        <div class="bg-dark-base border border-dark-border rounded-xl p-4 space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300">1. Parámetros Generales de la Edificación</h3>
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="text-xs font-medium text-gray-400 block mb-1">Nivel de destino</label>
+              <select id="wiz-level-select" onchange="wizardOnLevelSelectChange()" class="w-full bg-dark-input border border-dark-border rounded-lg px-2.5 py-1.5 text-xs text-blue-300 font-semibold focus:outline-none focus:border-blue-500">
+              </select>
+            </div>
+            <div id="wiz-new-level-box" class="hidden">
+              <label class="text-xs font-medium text-gray-400 block mb-1">Nombre nuevo nivel</label>
+              <input type="text" id="wiz-new-level-name" placeholder="Ej: Planta Alta" class="w-full bg-dark-input border border-dark-border rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-400 block mb-1">Tipo de edificación</label>
+              <select id="wiz-bldg-type" class="w-full bg-dark-input border border-dark-border rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                <option value="VIVIENDA">Vivienda Unifamiliar</option>
+                <option value="COLECTIVA">Vivienda Colectiva / Edificio</option>
+                <option value="OFICINA">Oficinas / Administrativo</option>
+                <option value="SALUD">Consultorio / Salud</option>
+                <option value="EDUCACION">Centro Educativo</option>
+                <option value="COMERCIO">Comercio / Servicios</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-400 block mb-1">Altura entrepiso (m)</label>
+              <input type="number" id="wiz-height" step="0.1" value="2.80" class="w-full bg-dark-input border border-dark-border rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-blue-500">
+            </div>
+          </div>
+          <div class="pt-2 border-t border-dark-border flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
+              <input type="checkbox" id="wiz-auto-footprint" checked onchange="wizardToggleFootprint()" class="rounded bg-dark-input text-blue-600 focus:ring-0">
+              Calcular huella óptima automáticamente según locales requeridos
+            </label>
+            <div id="wiz-manual-footprint" class="flex items-center gap-2 text-xs text-gray-400 opacity-50">
+              <span>Ancho:</span>
+              <input type="number" id="wiz-width" step="0.5" value="8.5" class="w-16 bg-dark-input border border-dark-border rounded px-2 py-1 text-white font-mono text-center" disabled>
+              <span>x Fondo:</span>
+              <input type="number" id="wiz-depth" step="0.5" value="9.5" class="w-16 bg-dark-input border border-dark-border rounded px-2 py-1 text-white font-mono text-center" disabled>
+              <span>m</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Programa Arquitectónico de Locales -->
+        <div class="bg-dark-base border border-dark-border rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300">2. Programa Arquitectónico de Locales</h3>
+            <!-- Plantillas rápidas -->
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] text-gray-400 mr-1">Cargar programa:</span>
+              <button onclick="wizardLoadPreset('VIVIENDA_1D')" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-[11px] text-gray-200">🏠 1D</button>
+              <button onclick="wizardLoadPreset('VIVIENDA_2D')" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-[11px] text-gray-200">🏡 2D</button>
+              <button onclick="wizardLoadPreset('VIVIENDA_3D')" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-[11px] text-gray-200">🏘️ 3D</button>
+              <button onclick="wizardLoadPreset('OFICINA_ADMIN')" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-[11px] text-gray-200">🏢 Oficina</button>
+              <button onclick="wizardLoadPreset('CONSULTORIO_SALUD')" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-[11px] text-gray-200">🩺 Clínica</button>
+            </div>
+          </div>
+
+          <!-- Tabla de Locales -->
+          <div class="border border-dark-border rounded-lg overflow-hidden max-h-52 overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-dark-card text-gray-400 font-semibold sticky top-0">
+                <tr>
+                  <th class="px-3 py-2">Nombre del Local</th>
+                  <th class="px-3 py-2">Tipo</th>
+                  <th class="px-3 py-2">Zona Funcional</th>
+                  <th class="px-3 py-2">Área Deseada</th>
+                  <th class="px-3 py-2 text-center">Ventana Ext.</th>
+                  <th class="px-3 py-2 text-center">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="wiz-rooms-tbody" class="divide-y divide-dark-border text-gray-200">
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Formulario rápido añadir local -->
+          <div class="grid grid-cols-6 gap-2 bg-dark-card/60 p-2.5 rounded-lg border border-dark-border text-xs items-center">
+            <input type="text" id="wiz-add-name" placeholder="Nombre local" class="bg-dark-input border border-dark-border rounded px-2.5 py-1.5 text-white col-span-2">
+            <select id="wiz-add-type" class="bg-dark-input border border-dark-border rounded px-2 py-1.5 text-white">
+              <option value="LIVING">LIVING</option>
+              <option value="DINING">DINING</option>
+              <option value="KITCHEN">KITCHEN</option>
+              <option value="BEDROOM" selected>BEDROOM</option>
+              <option value="BATHROOM">BATHROOM</option>
+              <option value="CORRIDOR">CORRIDOR</option>
+              <option value="PORCH">PORCH</option>
+              <option value="OFFICE">OFFICE</option>
+              <option value="SERVICE">SERVICE</option>
+            </select>
+            <select id="wiz-add-zone" class="bg-dark-input border border-dark-border rounded px-2 py-1.5 text-white">
+              <option value="SOCIAL">SOCIAL</option>
+              <option value="SERVICIO">SERVICIO</option>
+              <option value="PRIVADA" selected>PRIVADA</option>
+            </select>
+            <div class="flex items-center gap-1">
+              <input type="number" id="wiz-add-area" value="12.0" step="0.5" class="w-16 bg-dark-input border border-dark-border rounded px-2 py-1.5 text-white font-mono text-center">
+              <span class="text-gray-400">m²</span>
+            </div>
+            <button onclick="wizardAddRoom()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 font-bold rounded text-white transition">+ Añadir</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 Container -->
+      <div id="wizardStep2" class="flex-1 overflow-y-auto p-6 space-y-5 hidden">
+        <!-- Relaciones Espaciales entre Locales -->
+        <div class="bg-dark-base border border-dark-border rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300">1. Relaciones Espaciales entre Locales (Asociaciones)</h3>
+              <p class="text-[11px] text-gray-400 mt-0.5">Define qué locales se comunican entre sí y mediante qué tipo de elemento arquitectónico:</p>
+            </div>
+            <button onclick="wizardAutoConnectDNA()" class="px-2.5 py-1 bg-dark-hover hover:bg-dark-border text-blue-400 border border-dark-border rounded text-xs font-semibold flex items-center gap-1 transition">
+              <span>🔄</span> Auto-conectar Space DNA
+            </button>
+          </div>
+
+          <!-- Tabla de Asociaciones -->
+          <div class="border border-dark-border rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-dark-card text-gray-400 font-semibold sticky top-0">
+                <tr>
+                  <th class="px-3 py-2">Local Origen</th>
+                  <th class="px-3 py-2">Local Destino</th>
+                  <th class="px-3 py-2">Elemento de Asociación</th>
+                  <th class="px-3 py-2 text-center">Dimensión (m)</th>
+                  <th class="px-3 py-2 text-center">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="wiz-rel-tbody" class="divide-y divide-dark-border text-gray-200">
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Formulario añadir relación -->
+          <div class="grid grid-cols-5 gap-2 bg-dark-card/60 p-2.5 rounded-lg border border-dark-border text-xs items-center">
+            <select id="wiz-rel-from" class="bg-dark-input border border-dark-border rounded px-2.5 py-1.5 text-white"></select>
+            <select id="wiz-rel-to" class="bg-dark-input border border-dark-border rounded px-2.5 py-1.5 text-white"></select>
+            <select id="wiz-rel-type" class="bg-dark-input border border-dark-border rounded px-2.5 py-1.5 text-white">
+              <option value="DOOR">Puerta Batiente</option>
+              <option value="OPENING">Vano Libre / Arco</option>
+              <option value="WINDOW">Ventana Interior</option>
+              <option value="OPEN_PLAN">Espacio Integrado (Abierto)</option>
+              <option value="WALL">Muro Divisorio</option>
+            </select>
+            <input type="number" id="wiz-rel-size" value="0.85" step="0.05" class="bg-dark-input border border-dark-border rounded px-2 py-1.5 text-white font-mono text-center">
+            <button onclick="wizardAddRelationship()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 font-bold rounded text-white transition">+ Conectar</button>
+          </div>
+        </div>
+
+        <!-- Pestañas de Especialidades Técnicas -->
+        <div class="bg-dark-base border border-dark-border rounded-xl p-4 space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300">2. Requerimientos Técnicos y Normativos (NC)</h3>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Climático & Ambiental -->
+            <div class="bg-dark-card/60 p-3 rounded-lg border border-dark-border space-y-2 text-xs">
+              <span class="font-bold text-amber-400 block mb-1">☀️ Climático & Bioclimático</span>
+              <div class="flex items-center justify-between">
+                <span class="text-gray-400">Orientación fachada:</span>
+                <select id="wiz-orient" class="bg-dark-input border border-dark-border rounded px-2 py-1 text-white text-xs">
+                  <option value="SUR" selected>SUR</option>
+                  <option value="NORTE">NORTE</option>
+                  <option value="ESTE">ESTE</option>
+                  <option value="OESTE">OESTE</option>
+                  <option value="NORESTE">NORESTE</option>
+                </select>
+              </div>
+              <label class="flex items-center gap-2 cursor-pointer text-gray-300 pt-1">
+                <input type="checkbox" id="wiz-cross-vent" checked class="rounded bg-dark-input text-blue-600 focus:ring-0">
+                Ventilación cruzada obligatoria (NC 120)
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer text-gray-300">
+                <input type="checkbox" id="wiz-solar-shading" checked class="rounded bg-dark-input text-blue-600 focus:ring-0">
+                Aleros y protección solar en ventanas expuestas
+              </label>
+            </div>
+
+            <!-- Estructural -->
+            <div class="bg-dark-card/60 p-3 rounded-lg border border-dark-border space-y-2 text-xs">
+              <span class="font-bold text-blue-400 block mb-1">🧱 Estructural</span>
+              <div class="flex items-center justify-between">
+                <span class="text-gray-400">Sistema estructural:</span>
+                <select id="wiz-struct-system" class="bg-dark-input border border-dark-border rounded px-2 py-1 text-white text-xs">
+                  <option value="MUROS_PORTANTES" selected>Muros Portantes</option>
+                  <option value="PORTICOS_HA">Pórticos Hormigón</option>
+                  <option value="MIXTO">Sistema Mixto</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-2 pt-1 text-gray-300">
+                <div>Espesor Ext: <input type="number" id="wiz-wall-ext" value="0.20" step="0.05" class="w-14 bg-dark-input border border-dark-border rounded px-1.5 py-0.5 text-center font-mono"> m</div>
+                <div>Espesor Int: <input type="number" id="wiz-wall-int" value="0.15" step="0.05" class="w-14 bg-dark-input border border-dark-border rounded px-1.5 py-0.5 text-center font-mono"> m</div>
+              </div>
+            </div>
+
+            <!-- Hidráulico & Sanitario -->
+            <div class="bg-dark-card/60 p-3 rounded-lg border border-dark-border space-y-2 text-xs">
+              <span class="font-bold text-cyan-400 block mb-1">💧 Hidráulico & Sanitario</span>
+              <label class="flex items-center gap-2 cursor-pointer text-gray-300">
+                <input type="checkbox" id="wiz-wet-core" checked class="rounded bg-dark-input text-blue-600 focus:ring-0">
+                Agrupar locales húmedos (núcleo sanitario compartido - NC 600)
+              </label>
+              <div class="flex items-center justify-between pt-1">
+                <span class="text-gray-400">Suministro de agua:</span>
+                <select id="wiz-water-supply" class="bg-dark-input border border-dark-border rounded px-2 py-1 text-white text-xs">
+                  <option value="Cisterna + Tanque Elevado" selected>Cisterna + Tanque</option>
+                  <option value="Directa de red">Directa de red</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Seguridad & Instalaciones -->
+            <div class="bg-dark-card/60 p-3 rounded-lg border border-dark-border space-y-2 text-xs">
+              <span class="font-bold text-rose-400 block mb-1">🛡️ Seguridad & MEP</span>
+              <div class="grid grid-cols-2 gap-2 text-gray-300">
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="wiz-sadi" checked class="rounded bg-dark-input text-blue-600 focus:ring-0">
+                  Detección SADI
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="wiz-cctv" checked class="rounded bg-dark-input text-blue-600 focus:ring-0">
+                  CCTV Accesos
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="wiz-intrusion" checked class="rounded bg-dark-input text-blue-600 focus:ring-0">
+                  Intrusión Grado 2
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" id="wiz-power" checked class="rounded bg-dark-input text-blue-600 focus:ring-0">
+                  Red Eléctrica TD
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="px-6 py-3.5 bg-dark-card border-t border-dark-border flex items-center justify-between shrink-0">
+        <button onclick="closeWizardModal()" class="px-4 py-2 bg-dark-hover hover:bg-dark-border text-xs font-semibold rounded-lg text-gray-300 transition">Cancelar</button>
+        <div class="flex items-center gap-3">
+          <button id="btnWizardPrev" onclick="wizardGoStep(1)" class="px-4 py-2 bg-dark-hover hover:bg-dark-border text-xs font-semibold rounded-lg text-gray-300 transition hidden">◀ Atrás (Requerimientos)</button>
+          <button id="btnWizardNext" onclick="wizardGoStep(2)" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-xs font-bold rounded-lg text-white shadow-lg shadow-blue-500/25 transition">Siguiente: Relaciones Espaciales y Especialidades ➔</button>
+          <button id="btnWizardSubmit" onclick="wizardExecuteGenerate()" class="px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-bold rounded-lg text-white shadow-lg shadow-emerald-500/25 transition hidden">⚡ GENERAR PLANTA ARQUITECTÓNICA AUTOMÁTICA</button>
+        </div>
+      </div>
+    </div>
+  </div>
   </script>
 </body>
 </html>
