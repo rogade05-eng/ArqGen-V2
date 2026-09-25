@@ -1,0 +1,15 @@
+# ARQ GEN - .gitignore
+.venv/
+build/
+dist/
+__pycache__/
+*.pyc
+*.pyo
+logs/
+output/
+backups/
+*.arqgen
+!resources/**/*.arqgen
+config/python_home.txt
+plugins/external/*
+!plugins/external/.gitkeep
