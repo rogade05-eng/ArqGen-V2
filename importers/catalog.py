@@ -35,16 +35,20 @@ from importers.tables import read_table, to_numeric
 
 SHEET_SYNONYMS: Dict[str, Tuple[str, ...]] = {
     "items": ("partida", "work_item", "actividade", "trabajo", "concepto",
-              "analisis", "análisis"),
+              "analisis", "análisis", "renglon", "renglones", "renglones_precons",
+              "renglon_variante"),
     "indicators": ("rendimiento", "indicator", "indicador", "insumo_partida",
                    "desperdicio"),
-    "resources": ("recurso", "resource", "insumo", "material", "suministro"),
+    "resources": ("recurso", "resource", "insumo", "material", "materiales",
+                  "suministro", "equipo", "equipos", "mano_obra", "mano de obra",
+                  "mano_de_obra"),
     "prices": ("precio", "price", "costo", "tarifa", "lista"),
+    "parameters": ("parametro", "parametros", "limite", "limites"),
 }
 
 COLUMN_SYNONYMS: Dict[str, Tuple[str, ...]] = {
-    "item_code": ("partida", "codigo_partida", "codigo", "clave", "code",
-                  "id_partida", "no_partida", "numero", "num", "item"),
+    "item_code": ("partida", "codigo_partida", "codigo_precons", "codigo precons",
+                  "codigo", "clave", "code", "id_partida", "no_partida", "numero", "num", "item"),
     "item_name": ("nombre", "nombre_partida", "descripcion", "name",
                   "concepto", "detalle", "desc"),
     "item_unit": ("unidad", "um", "u_m", "unidad_medida", "unit"),
@@ -52,14 +56,15 @@ COLUMN_SYNONYMS: Dict[str, Tuple[str, ...]] = {
     "res_code": ("recurso", "insumo", "codigo_recurso", "resource",
                  "codigo_insumo", "clave_recurso", "codigo", "code", "clave"),
     "res_name": ("nombre_recurso", "descripcion_recurso", "resource_name",
-                 "nombre_insumo", "descripcion_insumo"),
+                 "nombre_insumo", "descripcion_insumo", "descripcion", "nombre"),
     "res_kind": ("tipo", "kind", "tipo_recurso", "categoria", "clasificacion"),
     "res_unit": ("unidad_recurso", "um_recurso", "unidad_insumo",
                  "unidad", "um"),
     "yield": ("rendimiento", "cantidad", "coeficiente", "yield", "cant",
               "cantidad_recurso"),
     "waste": ("desperdicio", "merma", "waste", "waste_pct", "pct_merma"),
-    "price": ("precio", "price", "costo", "importe", "valor"),
+    "price": ("precio", "price", "costo", "importe", "valor", "tarifa",
+              "precio oficial cup", "tarifa horaria cup", "precio oficial", "tarifa horaria", "total cup"),
 }
 
 RESOURCE_KINDS = ("MATERIAL", "LABOR", "EQUIPMENT", "TRANSPORT", "OTHER")
@@ -130,6 +135,8 @@ class CatalogImporter:
         detected: Dict[str, Any] = {"shape": "multi"}
         sheets = parsed["sheets"]
         named: Dict[str, List[Dict[str, Any]]] = {}
+        resource_rows: List[Dict[str, Any]] = []
+        resource_sheet_names: List[str] = []
         unmatched: List[str] = []
         for name, rows in sheets.items():
             if not rows:
@@ -141,7 +148,23 @@ class CatalogImporter:
                 explicit = self.mapping.get(f"{detected_role}_sheet")
                 if explicit is None or _norm(explicit) == low:
                     role = detected_role
-            if role and role not in named:
+            if role == "resources":
+                # Tag row with default kind based on sheet name if not set
+                kind_default = "OTHER"
+                if "material" in low:
+                    kind_default = "MATERIAL"
+                elif "equipo" in low:
+                    kind_default = "EQUIPMENT"
+                elif "mano" in low:
+                    kind_default = "LABOR"
+                for r in rows:
+                    if "_sheet_kind" not in r:
+                        r["_sheet_kind"] = kind_default
+                resource_rows.extend(rows)
+                resource_sheet_names.append(name)
+                named["resources"] = resource_rows
+                detected["resources_sheet"] = ", ".join(resource_sheet_names)
+            elif role and role not in named:
                 named[role] = rows
                 detected[f"{role}_sheet"] = name
             else:
@@ -241,6 +264,17 @@ class CatalogImporter:
                 "qto_formula": str(self._value(row, item_cols.get("item_formula")) or "").strip(),
                 "indicators": [],
             }
+            mat_cost = to_numeric(self._value(row, "Materiales CUP"), None)
+            mo_cost = to_numeric(self._value(row, "Mano de obra CUP"), None)
+            eq_cost = to_numeric(self._value(row, "Equipos CUP"), None)
+            tot_cost = to_numeric(self._value(row, "Total CUP"), None)
+            if any(v is not None and v > 0 for v in (mat_cost, mo_cost, eq_cost, tot_cost)):
+                item["breakdown"] = {
+                    "material": mat_cost or 0.0,
+                    "labor": mo_cost or 0.0,
+                    "equipment": eq_cost or 0.0,
+                    "total": tot_cost or 0.0,
+                }
             index[code] = item
             items.append(item)
 
@@ -257,7 +291,7 @@ class CatalogImporter:
                 if code in seen:
                     continue
                 seen.add(code)
-                kind = str(self._value(row, res_cols.get("res_kind")) or "OTHER").strip().upper()
+                kind = str(self._value(row, res_cols.get("res_kind")) or row.get("_sheet_kind") or "OTHER").strip().upper()
                 resources.append({
                     "code": code,
                     "name": str(self._value(row, res_cols.get("res_name")) or "").strip(),
@@ -371,6 +405,26 @@ class CatalogImporter:
                     f"{count} precios detectados en '{detected.get('prices_sheet')}': "
                     "los precios se cargan en el proyecto con 'price set' "
                     "(no van dentro del ruleset).")
+        elif "resources" in named:
+            price_cols = self._columns_for(named["resources"], PRICE_FIELDS)
+            price_header = price_cols.get("price")
+            code_header = price_cols.get("res_code")
+            if price_header and code_header:
+                count = 0
+                sample = []
+                for row in named["resources"]:
+                    code = self._value(row, code_header)
+                    price = to_numeric(self._value(row, price_header), None)
+                    if code is not None and price is not None and price > 0:
+                        count += 1
+                        if len(sample) < 5:
+                            sample.append({"code": str(code).strip(), "price": price})
+                if count:
+                    prices_preview = {"count": count, "sample": sample,
+                                      "sheet": detected.get("resources_sheet")}
+                    warnings.append(
+                        f"{count} precios detectados en '{detected.get('resources_sheet')}': "
+                        "disponibles para análisis unitario y listas de precios.")
 
         errors: List[str] = []
         if not items:

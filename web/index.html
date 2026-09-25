@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArqGen V2 — Generador de Arquitectura Sin IA & Ingeniería</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef4ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              accent: '#5B8DEF'
+            },
+            dark: {
+              base: '#15171C',
+              card: '#1B1E24',
+              hover: '#242832',
+              border: '#2E3544',
+              input: '#2A2F3A'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #15171C; color: #E9ECF1; font-family: ui-sans-serif, system-ui, sans-serif; }
+    .cad-grid {
+      background-size: 20px 20px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #15171C; }
+    ::-webkit-scrollbar-thumb { background: #2E3544; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none">
+
+  <!-- HEADER -->
+  <header class="bg-dark-card border-b border-dark-border px-4 py-2.5 flex items-center justify-between shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
+        A2
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base font-bold tracking-tight text-white">ARQ GEN <span class="text-blue-400">V2</span></h1>
+          <span class="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">Sin IA Procedimental</span>
+          <span class="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">PRECONS III</span>
+        </div>
+        <p class="text-xs text-gray-400">Generador de Arquitectura, BIM, Catálogo Oficial y Normas Cubanas (NC)</p>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <nav class="flex items-center gap-1 bg-dark-base p-1 rounded-lg border border-dark-border">
+      <button onclick="switchTab('2d')" id="tab-btn-2d" class="tab-btn active px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 bg-blue-600 text-white transition">
+        <span>📐</span> Planta 2D CAD
+      </button>
+      <button onclick="switchTab('3d')" id="tab-btn-3d" class="tab-btn px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 text-gray-400 hover:text-white transition">
+        <span>🏢</span> Modelo 3D BIM
+      </button>
+      <button onclick="switchTab('generator')" id="tab-btn-generator" class="tab-btn px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 text-gray-400 hover:text-white transition">
+        <span>⚡</span> Generador Sin IA
+      </button>
+      <button onclick="switchTab('precons')" id="tab-btn-precons" class="tab-btn px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 text-gray-400 hover:text-white transition">
+        <span>📊</span> PRECONS III (15,981)
+      </button>
+      <button onclick="switchTab('engineering')" id="tab-btn-engineering" class="tab-btn px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 text-gray-400 hover:text-white transition">
+        <span>🏗️</span> Normas Cubanas (NC)
+      </button>
+    </nav>
+
+    <!-- EXPORT ACTIONS -->
+    <div class="flex items-center gap-2">
+      <a href="/api/export/dxf" download="planta_arqgen.dxf" class="px-2.5 py-1.5 bg-dark-hover hover:bg-dark-border text-xs rounded-md text-gray-300 border border-dark-border flex items-center gap-1.5 transition">
+        <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        DXF (CAD)
+      </a>
+      <a href="/api/export/ifc" download="modelo_arqgen.ifc" class="px-2.5 py-1.5 bg-dark-hover hover:bg-dark-border text-xs rounded-md text-gray-300 border border-dark-border flex items-center gap-1.5 transition">
+        <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        IFC4 (BIM)
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="flex-1 flex overflow-hidden relative">
+
+    <!-- 1. VIEW: 2D CAD CANVAS -->
+    <div id="view-2d" class="flex-1 flex flex-col h-full">
+      <!-- Toolbar -->
+      <div class="bg-dark-card/60 backdrop-blur border-b border-dark-border px-4 py-2 flex items-center justify-between text-xs text-gray-400">
+        <div class="flex items-center gap-4">
+          <span class="font-semibold text-gray-200" id="cad-proj-title">Vivienda Estándar 2 Dormitorios</span>
+          <span id="cad-dimensions" class="bg-dark-hover px-2 py-0.5 rounded text-blue-400 border border-dark-border">8.50 x 9.50 m</span>
+          <span id="cad-area" class="bg-dark-hover px-2 py-0.5 rounded text-emerald-400 border border-dark-border">80.75 m²</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="resetZoom()" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-gray-300">Ajustar Vista (F)</button>
+          <button onclick="zoomIn()" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-gray-300">+</button>
+          <button onclick="zoomOut()" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-gray-300">-</button>
+        </div>
+      </div>
+      <!-- Canvas Container -->
+      <div class="flex-1 relative overflow-hidden cad-grid bg-[#0F1115]">
+        <canvas id="cadCanvas" class="w-full h-full cursor-crosshair"></canvas>
+        <div class="absolute bottom-3 left-3 bg-dark-card/80 backdrop-blur px-3 py-1.5 rounded text-xs text-gray-300 border border-dark-border flex gap-4">
+          <div>X: <span id="coord-x" class="text-blue-400 font-mono">0.00</span> m</div>
+          <div>Y: <span id="coord-y" class="text-blue-400 font-mono">0.00</span> m</div>
+          <div class="text-gray-500">Arrastre para mover | Rueda para Zoom</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. VIEW: 3D BIM VIEWER -->
+    <div id="view-3d" class="flex-1 flex flex-col h-full hidden">
+      <div class="bg-dark-card/60 backdrop-blur border-b border-dark-border px-4 py-2 flex items-center justify-between text-xs text-gray-400">
+        <span class="font-semibold text-gray-200">Visor Tridimensional BIM (Three.js WebGL)</span>
+        <div class="flex items-center gap-2 text-gray-400 text-xs">
+          <span>Click izq: Rotar</span> • <span>Click der: Desplazar</span> • <span>Rueda: Zoom</span>
+        </div>
+      </div>
+      <div id="three-container" class="flex-1 bg-[#101216] relative"></div>
+    </div>
+
+    <!-- 3. VIEW: GENERATOR WIZARD -->
+    <div id="view-generator" class="flex-1 flex overflow-hidden hidden p-6 gap-6">
+      <div class="w-96 bg-dark-card border border-dark-border rounded-xl p-5 flex flex-col gap-5 overflow-y-auto">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span>⚡</span> Generador Sin IA V2
+          </h2>
+          <p class="text-xs text-gray-400 mt-1">Generación algorítmica y determinista de plantas arquitectónicas basadas en reglas de Space DNA y zonificación ortogonal.</p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs font-semibold text-gray-300 block mb-1.5">Tipología Arquitectónica</label>
+            <select id="gen-template" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+              <option value="VIVIENDA_1D">Vivienda Económica 1D (~52 m²)</option>
+              <option value="VIVIENDA_2D" selected>Vivienda Estándar 2D (~80 m²)</option>
+              <option value="VIVIENDA_3D">Vivienda Familiar 3D (~115 m²)</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-gray-300 block mb-1">Ancho (m)</label>
+              <input type="number" id="gen-width" step="0.5" value="8.5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-300 block mb-1">Profundidad (m)</label>
+              <input type="number" id="gen-depth" step="0.5" value="9.5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-blue-500">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-semibold text-gray-300 block mb-1">Espesor Ext. (m)</label>
+              <input type="number" step="0.05" value="0.20" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-sm text-white font-mono" disabled>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-300 block mb-1">Altura Piso (m)</label>
+              <input type="number" step="0.1" value="2.80" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-sm text-white font-mono" disabled>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="triggerGenerate()" id="btn-generate-run" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition">
+          <span>⚡</span> Generar Planta Sin IA
+        </button>
+
+        <div class="mt-auto bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-xs text-blue-300">
+          <strong>Garantía Determinista:</strong> Cada muro, local, puerta y ventana tiene origen paramétrico reproducible, sin alucinaciones de IA ni modelos probabilísticos.
+        </div>
+      </div>
+
+      <!-- Live preview of generated spaces breakdown -->
+      <div class="flex-1 bg-dark-card border border-dark-border rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
+        <h3 class="text-sm font-bold text-white flex items-center justify-between">
+          <span>Programa Arquitectónico Generado</span>
+          <span id="gen-badge-area" class="text-xs font-normal px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Total: 80.75 m²</span>
+        </h3>
+        <div class="flex-1 overflow-y-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="text-gray-400 bg-dark-base uppercase text-[10px] sticky top-0">
+              <tr>
+                <th class="px-3 py-2">Código</th>
+                <th class="px-3 py-2">Local</th>
+                <th class="px-3 py-2">Superficie Útil</th>
+                <th class="px-3 py-2">Zonificación</th>
+              </tr>
+            </thead>
+            <tbody id="gen-spaces-table" class="divide-y divide-dark-border"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. VIEW: PRECONS III EXPLORER -->
+    <div id="view-precons" class="flex-1 flex flex-col overflow-hidden hidden p-6 gap-5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span>📊</span> Catálogo Oficial PRECONS III (RoPres 3.30)
+          </h2>
+          <p class="text-xs text-gray-400">15,981 renglones variantes y 4,383 recursos oficiales con tarifas cubanas en CUP y coeficientes de indirectos.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="relative w-80">
+            <input type="text" id="precons-search-input" onkeyup="if(event.key==='Enter') searchPrecons()" placeholder="Buscar: 'muro bloque', 'hormigon', 'demolicion'..." class="w-full bg-dark-card border border-dark-border rounded-lg pl-3 pr-9 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+            <button onclick="searchPrecons()" class="absolute right-2 top-2 text-gray-400 hover:text-white">🔍</button>
+          </div>
+          <button onclick="loadSamplePrecons('muro bloque')" class="px-2.5 py-1.5 bg-dark-card hover:bg-dark-hover border border-dark-border rounded-md text-xs text-gray-300">Muros</button>
+          <button onclick="loadSamplePrecons('hormigon')" class="px-2.5 py-1.5 bg-dark-card hover:bg-dark-hover border border-dark-border rounded-md text-xs text-gray-300">Hormigón</button>
+          <button onclick="loadSamplePrecons('acero')" class="px-2.5 py-1.5 bg-dark-card hover:bg-dark-hover border border-dark-border rounded-md text-xs text-gray-300">Acero</button>
+        </div>
+      </div>
+
+      <div class="flex-1 flex gap-6 overflow-hidden">
+        <!-- List of renglones -->
+        <div class="flex-1 bg-dark-card border border-dark-border rounded-xl flex flex-col overflow-hidden">
+          <div class="px-4 py-2.5 border-b border-dark-border flex justify-between items-center text-xs text-gray-400">
+            <span id="precons-count-label">Renglones Encontrados</span>
+            <span>Precios Oficiales CUP</span>
+          </div>
+          <div class="flex-1 overflow-y-auto">
+            <table class="w-full text-xs text-left">
+              <thead class="text-gray-400 bg-dark-base uppercase text-[10px] sticky top-0">
+                <tr>
+                  <th class="px-3 py-2">Código</th>
+                  <th class="px-3 py-2">Descripción</th>
+                  <th class="px-3 py-2">UM</th>
+                  <th class="px-3 py-2 text-right">Materiales</th>
+                  <th class="px-3 py-2 text-right">Mano Obra</th>
+                  <th class="px-3 py-2 text-right">Equipos</th>
+                  <th class="px-3 py-2 text-right">Total CD</th>
+                  <th class="px-3 py-2 text-center">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="precons-table-body" class="divide-y divide-dark-border"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- APU Card -->
+        <div class="w-80 bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col gap-4 overflow-y-auto" id="apu-panel">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-blue-400 border-b border-dark-border pb-2">
+            Análisis de Precio Unitario (APU)
+          </h3>
+          <div id="apu-content" class="text-xs text-gray-400 space-y-3">
+            <p class="text-center py-8">Seleccione un renglón para ver el desglose oficial de costos indirectos y utilidad.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. VIEW: ENGINEERING & CUBAN STANDARDS -->
+    <div id="view-engineering" class="flex-1 flex overflow-hidden hidden p-6 gap-6">
+      <!-- Calculator selector -->
+      <div class="w-64 bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col gap-2">
+        <h3 class="text-xs font-bold uppercase text-gray-400 px-2 mb-1">Módulos de Normas Cubanas</h3>
+        <button onclick="switchCalc('beam')" id="calc-btn-beam" class="calc-btn active text-left px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 text-white transition">
+          Viga Hormigón (NC 207)
+        </button>
+        <button onclick="switchCalc('column')" id="calc-btn-column" class="calc-btn text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover transition">
+          Columna y P-M (NC 450)
+        </button>
+        <button onclick="switchCalc('wind')" id="calc-btn-wind" class="calc-btn text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover transition">
+          Carga de Viento (NC 285)
+        </button>
+        <button onclick="switchCalc('seismic')" id="calc-btn-seismic" class="calc-btn text-left px-3 py-2 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover transition">
+          Cortante Sísmico (NC 46)
+        </button>
+      </div>
+
+      <!-- Active Calculator Container -->
+      <div class="flex-1 bg-dark-card border border-dark-border rounded-xl p-6 overflow-y-auto">
+        <!-- Beam Calc -->
+        <div id="calc-beam" class="space-y-6">
+          <div>
+            <h3 class="text-base font-bold text-white">Diseño a Flexión y Cortante de Vigas — NC 207 / NC 450</h3>
+            <p class="text-xs text-gray-400 mt-1">Cálculo de armadura longitudinal As, selección de barras comerciales y estribos de confinamiento.</p>
+          </div>
+          <div class="grid grid-cols-4 gap-4">
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Ancho b (m)</label>
+              <input type="number" id="beam-b" value="0.20" step="0.05" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Peralte h (m)</label>
+              <input type="number" id="beam-h" value="0.35" step="0.05" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Momento Mu (kN·m)</label>
+              <input type="number" id="beam-mu" value="25.0" step="1.0" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Cortante Vu (kN)</label>
+              <input type="number" id="beam-vu" value="20.0" step="1.0" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+          </div>
+          <button onclick="calculateBeam()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Sección Viga</button>
+          <div id="beam-results" class="hidden border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+
+        <!-- Column Calc -->
+        <div id="calc-column" class="space-y-6 hidden">
+          <div>
+            <h3 class="text-base font-bold text-white">Verificación y Diagrama de Interacción P-M de Columnas — NC 207</h3>
+            <p class="text-xs text-gray-400 mt-1">Análisis de flexocompresión biaxial, condición balanceada y envolvente resistente.</p>
+          </div>
+          <div class="grid grid-cols-4 gap-4">
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Lado b (m)</label>
+              <input type="number" id="col-b" value="0.25" step="0.05" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Lado h (m)</label>
+              <input type="number" id="col-h" value="0.25" step="0.05" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Axial Pu (kN)</label>
+              <input type="number" id="col-pu" value="300.0" step="10.0" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Momento Mu (kN·m)</label>
+              <input type="number" id="col-mu" value="15.0" step="1.0" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+          </div>
+          <button onclick="calculateColumn()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Verificar y Generar Curva P-M</button>
+          <div id="col-results" class="hidden border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+
+        <!-- Wind Calc -->
+        <div id="calc-wind" class="space-y-6 hidden">
+          <div>
+            <h3 class="text-base font-bold text-white">Carga de Viento según Norma Cubana NC 285</h3>
+            <p class="text-xs text-gray-400 mt-1">Zonificación oficial por provincias cubanas (Occidente V10=45 m/s, Centro V10=40 m/s, Oriente V10=35 m/s).</p>
+          </div>
+          <div class="grid grid-cols-4 gap-4">
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Provincia</label>
+              <select id="wind-prov" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+                <option value="La Habana">La Habana (Región I)</option>
+                <option value="Pinar del Río">Pinar del Río (Región I)</option>
+                <option value="Matanzas">Matanzas (Región I)</option>
+                <option value="Villa Clara">Villa Clara (Región II)</option>
+                <option value="Camagüey">Camagüey (Región II)</option>
+                <option value="Santiago de Cuba">Santiago de Cuba (Región III)</option>
+                <option value="Holguín">Holguín (Región III)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Ancho Fachada (m)</label>
+              <input type="number" id="wind-w" value="10.0" step="0.5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Altura Edificación (m)</label>
+              <input type="number" id="wind-h" value="3.0" step="0.5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Terreno</label>
+              <select id="wind-cat" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+                <option value="A">Cat. A (Costera abierta)</option>
+                <option value="B" selected>Cat. B (Suburbano/abierto)</option>
+                <option value="C">Cat. C (Centro urbano denso)</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="calculateWind()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Presiones de Viento NC 285</button>
+          <div id="wind-results" class="hidden border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+
+        <!-- Seismic Calc -->
+        <div id="calc-seismic" class="space-y-6 hidden">
+          <div>
+            <h3 class="text-base font-bold text-white">Cortante Basal Sísmico según Norma Cubana NC 46</h3>
+            <p class="text-xs text-gray-400 mt-1">Evaluación de peligrosidad sísmica según zonas sísmicas de Cuba (Zona 5 Oriente Sur: amax=0.30g).</p>
+          </div>
+          <div class="grid grid-cols-4 gap-4">
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Provincia</label>
+              <select id="seis-prov" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+                <option value="Santiago de Cuba" selected>Santiago de Cuba (Zona 5)</option>
+                <option value="Guantánamo">Guantánamo (Zona 5)</option>
+                <option value="Granma">Granma (Zona 4/5)</option>
+                <option value="Holguín">Holguín (Zona 3)</option>
+                <option value="La Habana">La Habana (Zona 1)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Área en Planta (m²)</label>
+              <input type="number" id="seis-area" value="80.0" step="5.0" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Altura Total (m)</label>
+              <input type="number" id="seis-alto" value="3.0" step="0.5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Niveles</label>
+              <input type="number" id="seis-niv" value="1" min="1" max="10" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+          </div>
+          <button onclick="calculateSeismic()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Cortante Sísmico NC 46</button>
+          <div id="seismic-results" class="hidden border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // -- Global State -----------------------------------------------------------
+    let projectState = null;
+    let canvas, ctx;
+    let zoom = 40; // pixels per meter
+    let panX = 100, panY = 100;
+    let isDragging = false;
+    let startDragX, startDragY;
+
+    // Three.js State
+    let scene, camera, renderer, controls;
+    let threeInitialized = false;
+
+    // -- App Init ---------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      canvas = document.getElementById('cadCanvas');
+      ctx = canvas.getContext('2d');
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      setupCanvasEvents();
+      loadProjectState();
+      searchPrecons();
+    });
+
+    function resizeCanvas() {
+      if (!canvas) return;
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+      drawCAD();
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('bg-blue-600', 'text-white');
+        b.classList.add('text-gray-400');
+      });
+      const activeBtn = document.getElementById(`tab-btn-${tab}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-gray-400');
+        activeBtn.classList.add('bg-blue-600', 'text-white');
+      }
+
+      ['2d', '3d', 'generator', 'precons', 'engineering'].forEach(t => {
+        const el = document.getElementById(`view-${t}`);
+        if (el) el.classList.toggle('hidden', t !== tab);
+      });
+
+      if (tab === '2d') {
+        resizeCanvas();
+      } else if (tab === '3d') {
+        if (!threeInitialized) initThree();
+        else updateThreeScene();
+      }
+    }
+
+    function switchCalc(calc) {
+      document.querySelectorAll('.calc-btn').forEach(b => {
+        b.classList.remove('bg-blue-600', 'text-white');
+        b.classList.add('text-gray-300');
+      });
+      const btn = document.getElementById(`calc-btn-${calc}`);
+      if (btn) {
+        btn.classList.remove('text-gray-300');
+        btn.classList.add('bg-blue-600', 'text-white');
+      }
+
+      ['beam', 'column', 'wind', 'seismic'].forEach(c => {
+        const el = document.getElementById(`calc-${c}`);
+        if (el) el.classList.toggle('hidden', c !== calc);
+      });
+    }
+
+    // -- Load Project State -----------------------------------------------------
+    async function loadProjectState() {
+      try {
+        const res = await fetch('/api/project/state');
+        projectState = await res.json();
+        updateUI();
+        drawCAD();
+        if (threeInitialized) updateThreeScene();
+      } catch (e) {
+        console.error('Error cargando estado:', e);
+      }
+    }
+
+    function updateUI() {
+      if (!projectState) return;
+      document.getElementById('cad-proj-title').innerText = projectState.project_name || 'Vivienda Generada V2';
+      const totalArea = projectState.spaces.reduce((acc, s) => acc + s.area_m2, 0);
+      document.getElementById('cad-area').innerText = `${totalArea.toFixed(2)} m²`;
+      document.getElementById('gen-badge-area').innerText = `Total: ${totalArea.toFixed(2)} m²`;
+
+      // Table in generator
+      const tbody = document.getElementById('gen-spaces-table');
+      if (tbody) {
+        tbody.innerHTML = projectState.spaces.map(s => `
+          <tr class="hover:bg-dark-hover/50">
+            <td class="px-3 py-2 font-mono text-blue-400">${s.code}</td>
+            <td class="px-3 py-2 font-medium text-white">${s.name}</td>
+            <td class="px-3 py-2 font-mono text-emerald-400">${s.area_m2.toFixed(2)} m²</td>
+            <td class="px-3 py-2 text-gray-400">${s.type}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    // -- 2D CAD Canvas Drawing --------------------------------------------------
+    function drawCAD() {
+      if (!ctx || !projectState) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.translate(panX, panY);
+
+      // Colors for room zones
+      const zoneColors = {
+        'PORCH': 'rgba(245, 158, 11, 0.15)',
+        'LIVING': 'rgba(59, 130, 246, 0.12)',
+        'DINING': 'rgba(59, 130, 246, 0.12)',
+        'KITCHEN': 'rgba(6, 182, 212, 0.15)',
+        'SERVICE_YARD': 'rgba(14, 165, 233, 0.12)',
+        'BATHROOM': 'rgba(16, 185, 129, 0.15)',
+        'BEDROOM': 'rgba(168, 85, 247, 0.12)',
+        'CORRIDOR': 'rgba(203, 213, 225, 0.08)'
+      };
+
+      // 1. Draw Spaces
+      projectState.spaces.forEach(s => {
+        if (!s.boundary || s.boundary.length < 3) return;
+        ctx.beginPath();
+        const start = toScreen(s.boundary[0][0], s.boundary[0][1]);
+        ctx.moveTo(start.x, start.y);
+        for (let i = 1; i < s.boundary.length; i++) {
+          const pt = toScreen(s.boundary[i][0], s.boundary[i][1]);
+          ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = zoneColors[s.type] || 'rgba(255, 255, 255, 0.05)';
+        ctx.fill();
+
+        // Label center
+        let cx = 0, cy = 0;
+        s.boundary.forEach(p => { cx += p[0]; cy += p[1]; });
+        cx /= s.boundary.length; cy /= s.boundary.length;
+        const screenCenter = toScreen(cx, cy);
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(s.name, screenCenter.x, screenCenter.y - 4);
+        ctx.fillStyle = '#60A5FA';
+        ctx.font = '10px monospace';
+        ctx.fillText(`${s.area_m2.toFixed(2)} m²`, screenCenter.x, screenCenter.y + 10);
+      });
+
+      // 2. Draw Walls
+      projectState.walls.forEach(w => {
+        const p1 = toScreen(w.start[0], w.start[1]);
+        const p2 = toScreen(w.end[0], w.end[1]);
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.lineWidth = Math.max(3, w.thickness_m * zoom);
+        ctx.strokeStyle = w.structural ? '#F8FAFC' : '#94A3B8';
+        ctx.lineCap = 'square';
+        ctx.stroke();
+      });
+
+      // 3. Draw Doors
+      projectState.doors.forEach(d => {
+        const wall = projectState.walls.find(w => w.id === d.wall_id);
+        if (!wall) return;
+        const dx = wall.end[0] - wall.start[0];
+        const dy = wall.end[1] - wall.start[1];
+        const len = Math.hypot(dx, dy);
+        if (len < 0.1) return;
+        const ux = dx / len, uy = dy / len;
+
+        const doorStartM = { x: wall.start[0] + ux * d.offset_m, y: wall.start[1] + uy * d.offset_m };
+        const pDoor = toScreen(doorStartM.x, doorStartM.y);
+        const doorPixelW = d.width_m * zoom;
+
+        // Swing Arc
+        ctx.beginPath();
+        ctx.arc(pDoor.x, pDoor.y, doorPixelW, 0, Math.PI / 2);
+        ctx.strokeStyle = '#38BDF8';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+
+      // 4. Draw Windows
+      projectState.windows.forEach(win => {
+        const wall = projectState.walls.find(w => w.id === win.wall_id);
+        if (!wall) return;
+        const dx = wall.end[0] - wall.start[0];
+        const dy = wall.end[1] - wall.start[1];
+        const len = Math.hypot(dx, dy);
+        if (len < 0.1) return;
+        const ux = dx / len, uy = dy / len;
+
+        const w1 = toScreen(wall.start[0] + ux * win.offset_m, wall.start[1] + uy * win.offset_m);
+        const w2 = toScreen(wall.start[0] + ux * (win.offset_m + win.width_m), wall.start[1] + uy * (win.offset_m + win.width_m));
+
+        ctx.beginPath();
+        ctx.moveTo(w1.x, w1.y);
+        ctx.lineTo(w2.x, w2.y);
+        ctx.lineWidth = Math.max(4, wall.thickness_m * zoom + 2);
+        ctx.strokeStyle = '#0284C7';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(w1.x, w1.y);
+        ctx.lineTo(w2.x, w2.y);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#38BDF8';
+        ctx.stroke();
+      });
+
+      ctx.restore();
+    }
+
+    function toScreen(x, y) {
+      return { x: x * zoom, y: y * zoom };
+    }
+    function toWorld(screenX, screenY) {
+      return { x: (screenX - panX) / zoom, y: (screenY - panY) / zoom };
+    }
+
+    function setupCanvasEvents() {
+      canvas.addEventListener('mousedown', e => {
+        isDragging = true;
+        startDragX = e.clientX - panX;
+        startDragY = e.clientY - panY;
+      });
+      window.addEventListener('mouseup', () => isDragging = false);
+      canvas.addEventListener('mousemove', e => {
+        if (isDragging) {
+          panX = e.clientX - startDragX;
+          panY = e.clientY - startDragY;
+          drawCAD();
+        }
+        const w = toWorld(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top);
+        document.getElementById('coord-x').innerText = w.x.toFixed(2);
+        document.getElementById('coord-y').innerText = w.y.toFixed(2);
+      });
+      canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.15 : 0.85;
+        zoom = Math.max(10, Math.min(150, zoom * factor));
+        drawCAD();
+      });
+    }
+
+    function resetZoom() {
+      zoom = 38;
+      panX = 80;
+      panY = 80;
+      drawCAD();
+    }
+    function zoomIn() { zoom = Math.min(150, zoom * 1.2); drawCAD(); }
+    function zoomOut() { zoom = Math.max(10, zoom * 0.8); drawCAD(); }
+
+    // -- Three.js 3D Viewer -----------------------------------------------------
+    function initThree() {
+      const container = document.getElementById('three-container');
+      const w = container.clientWidth, h = container.clientHeight;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#101216');
+
+      camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+      camera.position.set(10, 16, 16);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(w, h);
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.target.set(5, 0, 5);
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(15, 25, 10);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+
+      // Grid ground
+      const gridHelper = new THREE.GridHelper(30, 30, 0x3b82f6, 0x222630);
+      scene.add(gridHelper);
+
+      threeInitialized = true;
+      updateThreeScene();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+    }
+
+    function updateThreeScene() {
+      if (!scene || !projectState) return;
+
+      // Clear existing walls/slabs
+      const toRemove = [];
+      scene.traverse(child => {
+        if (child.isMesh && child.name.startsWith('arq_')) toRemove.push(child);
+      });
+      toRemove.forEach(m => scene.remove(m));
+
+      const wallMatExt = new THREE.MeshStandardMaterial({ color: 0xDCE1E8, roughness: 0.6 });
+      const wallMatInt = new THREE.MeshStandardMaterial({ color: 0x94A3B8, roughness: 0.7 });
+      const slabMat = new THREE.MeshStandardMaterial({ color: 0x1E2430, roughness: 0.8 });
+
+      // Extrude Walls
+      projectState.walls.forEach(w => {
+        const dx = w.end[0] - w.start[0];
+        const dy = w.end[1] - w.start[1];
+        const len = Math.hypot(dx, dy);
+        if (len < 0.1) return;
+
+        const geom = new THREE.BoxGeometry(len, w.height_m, w.thickness_m);
+        const mesh = new THREE.Mesh(geom, w.structural ? wallMatExt : wallMatInt);
+        mesh.name = `arq_wall_${w.id}`;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        const midX = (w.start[0] + w.end[0]) / 2.0;
+        const midZ = (w.start[1] + w.end[1]) / 2.0;
+        mesh.position.set(midX, w.height_m / 2.0, midZ);
+        mesh.rotation.y = -Math.atan2(dy, dx);
+        scene.add(mesh);
+      });
+
+      // Slabs
+      projectState.spaces.forEach(s => {
+        if (!s.boundary || s.boundary.length < 3) return;
+        const shape = new THREE.Shape();
+        shape.moveTo(s.boundary[0][0], s.boundary[0][1]);
+        for (let i = 1; i < s.boundary.length; i++) {
+          shape.lineTo(s.boundary[i][0], s.boundary[i][1]);
+        }
+        shape.closePath();
+
+        const geom = new THREE.ShapeGeometry(shape);
+        const mesh = new THREE.Mesh(geom, slabMat);
+        mesh.name = `arq_slab_${s.id}`;
+        mesh.rotation.x = Math.PI / 2;
+        mesh.position.y = 0.02;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+      });
+    }
+
+    // -- Generator Trigger ------------------------------------------------------
+    async function triggerGenerate() {
+      const btn = document.getElementById('btn-generate-run');
+      btn.innerHTML = '<span>⏳</span> Generando...';
+      const template = document.getElementById('gen-template').value;
+      const width = parseFloat(document.getElementById('gen-width').value);
+      const depth = parseFloat(document.getElementById('gen-depth').value);
+
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ template, width, depth })
+        });
+        const result = await res.json();
+        await loadProjectState();
+        switchTab('2d');
+      } catch (e) {
+        alert('Error en generación: ' + e);
+      } finally {
+        btn.innerHTML = '<span>⚡</span> Generar Planta Sin IA';
+      }
+    }
+
+    // -- PRECONS III Search & APU ----------------------------------------------
+    async function searchPrecons() {
+      const q = document.getElementById('precons-search-input').value;
+      const res = await fetch(`/api/precons/search?q=${encodeURIComponent(q)}&limit=25`);
+      const data = await res.json();
+
+      document.getElementById('precons-count-label').innerText = `${data.count} renglones encontrados (de 15,981)`;
+      const tbody = document.getElementById('precons-table-body');
+      tbody.innerHTML = data.results.map(r => `
+        <tr class="hover:bg-dark-hover transition">
+          <td class="px-3 py-2 font-mono text-blue-400 font-semibold">${r.codigo}</td>
+          <td class="px-3 py-2 text-gray-200 max-w-md truncate" title="${r.descripcion}">${r.descripcion}</td>
+          <td class="px-3 py-2 text-gray-400">${r.unidad}</td>
+          <td class="px-3 py-2 text-right font-mono text-gray-300">${r.materiales_cup.toFixed(2)}</td>
+          <td class="px-3 py-2 text-right font-mono text-gray-300">${r.mano_obra_cup.toFixed(2)}</td>
+          <td class="px-3 py-2 text-right font-mono text-gray-300">${r.equipos_cup.toFixed(2)}</td>
+          <td class="px-3 py-2 text-right font-mono text-emerald-400 font-bold">${r.total_cup.toFixed(2)}</td>
+          <td class="px-3 py-2 text-center">
+            <button onclick="loadAPU('${r.codigo}')" class="px-2 py-1 bg-blue-600/30 hover:bg-blue-600 text-blue-300 hover:text-white rounded text-[11px] font-semibold transition">
+              Ver APU
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function loadSamplePrecons(term) {
+      document.getElementById('precons-search-input').value = term;
+      searchPrecons();
+    }
+
+    async function loadAPU(code) {
+      const res = await fetch(`/api/precons/apu?code=${code}&qty=1`);
+      const apu = await res.json();
+
+      const container = document.getElementById('apu-content');
+      container.innerHTML = `
+        <div>
+          <span class="text-blue-400 font-mono font-bold">${apu.codigo}</span>
+          <h4 class="font-semibold text-white mt-0.5 leading-snug">${apu.descripcion}</h4>
+          <span class="text-[11px] text-gray-400">Unidad: ${apu.unidad} | ${apu.seccion}</span>
+        </div>
+
+        <div class="bg-dark-base rounded-lg p-3 space-y-2 border border-dark-border">
+          <div class="font-semibold text-gray-300 border-b border-dark-border pb-1">1. Costos Directos (CUP)</div>
+          <div class="flex justify-between"><span>Materiales:</span><span class="font-mono text-gray-200">${apu.costo_directo.materiales.toFixed(2)}</span></div>
+          <div class="flex justify-between"><span>Mano de Obra:</span><span class="font-mono text-gray-200">${apu.costo_directo.mano_obra.toFixed(2)}</span></div>
+          <div class="flex justify-between"><span>Equipos:</span><span class="font-mono text-gray-200">${apu.costo_directo.equipos.toFixed(2)}</span></div>
+          <div class="flex justify-between font-bold border-t border-dark-border pt-1"><span>Subtotal CD:</span><span class="font-mono text-emerald-400">${apu.costo_directo.subtotal.toFixed(2)}</span></div>
+        </div>
+
+        <div class="bg-dark-base rounded-lg p-3 space-y-2 border border-dark-border">
+          <div class="font-semibold text-gray-300 border-b border-dark-border pb-1">2. Coeficientes Oficiales</div>
+          <div class="flex justify-between"><span>Transporte (${apu.coeficientes.transporte_pct}%):</span><span class="font-mono text-gray-200">${apu.coeficientes.transporte_cup.toFixed(2)}</span></div>
+          <div class="flex justify-between"><span>Indirectos (${apu.coeficientes.indirectos_pct}%):</span><span class="font-mono text-gray-200">${apu.coeficientes.indirectos_cup.toFixed(2)}</span></div>
+          <div class="flex justify-between"><span>Utilidad (${apu.coeficientes.beneficio_pct}%):</span><span class="font-mono text-gray-200">${apu.coeficientes.beneficio_cup.toFixed(2)}</span></div>
+        </div>
+
+        <div class="bg-blue-600/20 border border-blue-500/30 rounded-lg p-3 text-center">
+          <div class="text-[11px] text-blue-300 uppercase font-semibold">Precio Unitario Oficial</div>
+          <div class="text-2xl font-bold text-white font-mono mt-1">${apu.precio_unitario.toFixed(2)} <span class="text-xs font-normal">CUP/${apu.unidad}</span></div>
+        </div>
+      `;
+    }
+
+    // -- Engineering Calculations -----------------------------------------------
+    async function calculateBeam() {
+      const b = parseFloat(document.getElementById('beam-b').value);
+      const h = parseFloat(document.getElementById('beam-h').value);
+      const mu = parseFloat(document.getElementById('beam-mu').value);
+      const vu = parseFloat(document.getElementById('beam-vu').value);
+
+      const res = await fetch('/api/struct/beam', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ b, h, mu, vu })
+      });
+      const data = await res.json();
+      const div = document.getElementById('beam-results');
+      div.classList.remove('hidden');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">Resultado: ${data.status}</span>
+            <span class="px-2 py-0.5 rounded ${data.status === 'CUMPLE' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'} font-semibold">
+              ${data.status === 'CUMPLE' ? 'VÁLIDO' : 'REVISAR'}
+            </span>
+          </div>
+          <div class="grid grid-cols-2 gap-4 mt-3">
+            <div>
+              <div class="text-gray-400">Armadura Long. Requerida As:</div>
+              <div class="font-mono text-sm font-bold text-blue-400">${data.as_req_cm2} cm²</div>
+              <div class="text-gray-300 mt-1">Barras sugeridas: <strong>${data.bars_recommended}</strong></div>
+              <div class="text-gray-400 mt-1">Capacidad φ·Mn: <strong>${data.phi_mn_kn_m} kN·m</strong> (${(data.utilization_flexure*100).toFixed(1)}%)</div>
+            </div>
+            <div>
+              <div class="text-gray-400">Capacidad a Cortante φ·Vc:</div>
+              <div class="font-mono text-sm font-bold text-blue-400">${data.phi_vc_kn} kN</div>
+              <div class="text-gray-300 mt-1">Estribos: <strong>${data.stirrups_recommended}</strong></div>
+              <div class="text-gray-400 mt-1">Utilización cortante: ${(data.utilization_shear*100).toFixed(1)}%</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function calculateColumn() {
+      const b = parseFloat(document.getElementById('col-b').value);
+      const h = parseFloat(document.getElementById('col-h').value);
+      const pu = parseFloat(document.getElementById('col-pu').value);
+      const mu = parseFloat(document.getElementById('col-mu').value);
+
+      const res = await fetch('/api/struct/column', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ b, h, pu, mu })
+      });
+      const data = await res.json();
+      const div = document.getElementById('col-results');
+      div.classList.remove('hidden');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">Estado: ${data.status}</span>
+            <span class="font-mono text-blue-400">Ratio: ${data.utilization}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-3 mt-2 text-gray-300">
+            <div>Compresión P0: <strong>${data.p0_kn} kN</strong></div>
+            <div>φ·Pn(máx): <strong>${data.phi_pn_max_kn} kN</strong></div>
+            <div>Punto Bal. (Pb, Mb): <strong>${data.pb_kn} kN, ${data.mb_kn_m} kN·m</strong></div>
+          </div>
+          <div class="text-gray-400 mt-2">Armadura: ${data.rebar_summary}</div>
+        </div>
+      `;
+    }
+
+    async function calculateWind() {
+      const provincia = document.getElementById('wind-prov').value;
+      const ancho = parseFloat(document.getElementById('wind-w').value);
+      const alto = parseFloat(document.getElementById('wind-h').value);
+      const terreno = document.getElementById('wind-cat').value;
+
+      const res = await fetch('/api/struct/wind', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provincia, ancho, alto, terreno })
+      });
+      const data = await res.json();
+      const div = document.getElementById('wind-results');
+      div.classList.remove('hidden');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-2 text-xs">
+          <div class="font-bold text-white text-sm">${data.region} — ${data.provincia}</div>
+          <div class="grid grid-cols-2 gap-4 mt-2">
+            <div>
+              <div>Velocidad básica V10: <strong class="text-blue-400 font-mono">${data.v10_ms} m/s (${(data.v10_ms*3.6).toFixed(0)} km/h)</strong></div>
+              <div>Presión básica q10: <strong class="font-mono">${data.q10_pa} Pa</strong></div>
+              <div>Factor Ce: <strong>${data.ce_factor}</strong> (Cat. ${data.terrain_category})</div>
+            </div>
+            <div>
+              <div>Presión Barlovento: <strong class="text-emerald-400 font-mono">${data.p_windward_kpa} kPa</strong></div>
+              <div>Succión Sotavento: <strong class="text-orange-400 font-mono">${data.p_leeward_kpa} kPa</strong></div>
+              <div class="mt-2 text-white font-bold">Fuerza Lateral Total: <span class="text-blue-400 font-mono">${data.total_lateral_force_kn} kN</span></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function calculateSeismic() {
+      const provincia = document.getElementById('seis-prov').value;
+      const area = parseFloat(document.getElementById('seis-area').value);
+      const alto = parseFloat(document.getElementById('seis-alto').value);
+      const niveles = parseInt(document.getElementById('seis-niv').value);
+
+      const res = await fetch('/api/struct/seismic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provincia, area, alto, niveles })
+      });
+      const data = await res.json();
+      const div = document.getElementById('seismic-results');
+      div.classList.remove('hidden');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-2 text-xs">
+          <div class="font-bold text-white text-sm">${data.zona_sismica} — ${data.provincia}</div>
+          <div class="grid grid-cols-2 gap-4 mt-2">
+            <div>
+              <div>Aceleración amax: <strong class="text-red-400 font-mono">${data.amax_g} g</strong></div>
+              <div>Periodo fundamental T: <strong class="font-mono">${data.fundamental_period_s} s</strong></div>
+              <div>Coeficiente sísmico Cs: <strong class="font-mono">${data.seismic_coefficient_cs}</strong></div>
+            </div>
+            <div>
+              <div>Peso sísmico edificación W: <strong class="font-mono">${data.building_weight_kn} kN</strong></div>
+              <div class="mt-2 text-white font-bold text-sm">Cortante Basal V: <span class="text-red-400 font-mono">${data.base_shear_kn} kN</span></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>

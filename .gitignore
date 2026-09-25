@@ -11,5 +11,6 @@ backups/
 *.arqgen
 !resources/**/*.arqgen
 config/python_home.txt
+resources/catalogs/*.db
 plugins/external/*
 !plugins/external/.gitkeep

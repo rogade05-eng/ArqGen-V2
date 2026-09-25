@@ -1,13 +1,19 @@
-# ARQ GEN
+# ARQ GEN V2
 
-**Sistema profesional de escritorio para arquitectura, ingeniería, construcción y seguridad.**
-Fases entregadas: **P0 — Fundación + P1 — Arquitectura + FASES 10–16 — Instalaciones completas + FASES 17–25 — Estructura, Seguridad y Coordinación + FASES 26–29 — QTO/Precios/Presupuesto + FASES 30–33 — PRECONS/SIECONS, BIM e IFC + FASES 34–43 — Documentación, Optimización, Auditoría, Versionado, Backup/Recovery, Plugins, Rendimiento y QA final + FASE 90 — Interfaz gráfica (spec 90-93) + IMPORTACIÓN §94 — pipeline completo de archivos externos (v1.7.0) + UX v1.7.1 — tema oscuro, ayuda dinámica y flujo guiado** (100% funcional, sin módulos incompletos).
-
-Versión 1.7.1 · Python 3.13 · Windows · 100% offline tras instalar dependencias
+**Sistema profesional de escritorio y web para arquitectura, ingeniería, construcción y seguridad.**
+**Versión 2.0.0 · Generador de Arquitectura Sin IA V2 + Catálogo Oficial PRECONS III + Normas Cubanas (NC) + Web Studio 2D/3D** (100% funcional, determinista y trazable).
 
 ---
 
-## 1. Qué incluye esta fase
+## 1. Novedades de la Versión 2.0.0
+
+| Pilar V2 | Estado | Detalle |
+|---|---|---|
+| **Generador de Arquitectura Sin IA V2** | ✔ nuevo | Generación procedural determinista de plantas completas sin redes neuronales ni alucinaciones: zonificación ortogonal (Social, Servicios, Privada), trazado automático de muros perimetrales e interiores, dimensionamiento normativo de puertas y ventanas, cálculo QTO instantáneo y exportación DXF/IFC. Comando `main.py generate`. |
+| **Catálogo PRECONS III Oficial (RoPres 3.30)** | ✔ nuevo | Base de datos indexada con FTS5 de los **15,981 renglones variantes** y **4,383 recursos** (materiales, equipos, mano de obra) con precios oficiales CUP y coeficientes de transporte, indirectos y utilidad. Búsqueda en <1 ms y cálculo de APU. Comandos `precons catalogo-search|item|recursos|apu|build`. |
+| **Cálculos y Normas Cubanas (NC)** | ✔ nuevo | **NC 207 / NC 450** (vigas a flexión/cortante y columnas con diagrama de interacción P-M y cuantías de acero), **NC 285** (cargas de viento por provincias de Cuba, ráfaga y presiones barlovento/sotavento) y **NC 46** (espectro sísmico y cortante basal por zonas de peligrosidad). Comandos `struct nc-viga|columna|viento|sismo`. |
+| **ArqGen V2 Web Studio (2D CAD & 3D BIM)** | ✔ nuevo | Aplicación web interactiva en puerto 3000 con **Lienzo 2D CAD** (pan, zoom, cotas, dibujo arquitectónico de muros y vanos), **Visor 3D BIM** (Three.js WebGL con sombras y control orbital), wizard del generador y explorador PRECONS en tiempo real. |
+| **Multiplataforma y Modo Headless** | ✔ optimizado | Módulos desacoplados de `tkinter` para ejecución fluida en Linux, servidores, contenedores y CI/CD sin display (suite de 445 pruebas unitarias pasando al 100%). |
 
 | Componente | Estado | Detalle |
 |---|---|---|

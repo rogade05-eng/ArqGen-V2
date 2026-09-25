@@ -500,6 +500,31 @@ def _build_parser() -> argparse.ArgumentParser:
     pscc.add_argument("--demand", type=float, required=True)
     psr = psub.add_parser("report", help="Informe de utilización y acero")
     psr.add_argument("file")
+    pnc_v = psub.add_parser("nc-viga", help="Diseño de viga de hormigón armado según NC 207 / Eurocódigo 2")
+    pnc_v.add_argument("--b", type=float, default=0.20, help="Ancho de la viga en metros (ej. 0.20)")
+    pnc_v.add_argument("--h", type=float, default=0.35, help="Peralte total en metros (ej. 0.35)")
+    pnc_v.add_argument("--mu", type=float, required=True, help="Momento flector último mayorado en kN·m")
+    pnc_v.add_argument("--vu", type=float, default=20.0, help="Fuerza cortante última mayorada en kN")
+    pnc_v.add_argument("--fc", type=float, default=25.0, help="Resistencia del hormigón f'c en MPa (ej. 25)")
+    pnc_v.add_argument("--fy", type=float, default=400.0, help="Límite elástico del acero fy en MPa (ej. 400)")
+    pnc_c = psub.add_parser("nc-columna", help="Verificación y diagrama P-M de columna según NC 207 / NC 450")
+    pnc_c.add_argument("--b", type=float, default=0.25, help="Lado b en metros")
+    pnc_c.add_argument("--h", type=float, default=0.25, help="Lado h en metros")
+    pnc_c.add_argument("--pu", type=float, required=True, help="Carga axial última mayorada en kN")
+    pnc_c.add_argument("--mu", type=float, default=15.0, help="Momento flector último mayorado en kN·m")
+    pnc_c.add_argument("--bars", type=int, default=4, help="Número de barras longitudinales")
+    pnc_c.add_argument("--diam", type=float, default=16.0, help="Diámetro de barras en mm (ej. 16)")
+    pnc_c.add_argument("--fc", type=float, default=25.0, help="f'c en MPa")
+    pnc_w = psub.add_parser("nc-viento", help="Cálculo de cargas de viento según NC 285 en Cuba")
+    pnc_w.add_argument("--provincia", default="La Habana", help="Provincia cubana de emplazamiento")
+    pnc_w.add_argument("--ancho", type=float, default=10.0, help="Ancho de fachada expuesta (m)")
+    pnc_w.add_argument("--alto", type=float, default=3.0, help="Altura de la edificación (m)")
+    pnc_w.add_argument("--terreno", choices=["A", "B", "C"], default="B", help="Categoría de terreno (A: costera, B: abierta, C: urbana)")
+    pnc_s = psub.add_parser("nc-sismo", help="Cálculo de cortante basal sísmico según NC 46")
+    pnc_s.add_argument("--provincia", default="Santiago de Cuba", help="Provincia cubana de emplazamiento")
+    pnc_s.add_argument("--area", type=float, default=80.0, help="Área de la edificación en m²")
+    pnc_s.add_argument("--alto", type=float, default=3.0, help="Altura total en metros")
+    pnc_s.add_argument("--niveles", type=int, default=1, help="Número de niveles")
 
     p = sub.add_parser("sec", help="Seguridad (CCTV, fuego, intrusión, acceso, perímetro)")
     psub = p.add_subparsers(dest="subcommand", required=True)
@@ -596,6 +621,21 @@ def _build_parser() -> argparse.ArgumentParser:
     ppi.add_argument("--mapping", default="", help="JSON con el mapa de columnas (obligatorio solo si --data es JSON)")
     ppi.add_argument("--code", default="imported")
     ppi.add_argument("--out", default="")
+    pcb = psub.add_parser("catalogo-build", help="Compilar Catalogo_PRECONS_III_Completo.xlsx en base SQLite FTS5")
+    pcb.add_argument("--excel", default="Catalogo_PRECONS_III_Completo.xlsx")
+    pcb.add_argument("--out", default="")
+    pcs = psub.add_parser("catalogo-search", help="Búsqueda instantánea en los 15,981 renglones oficiales")
+    pcs.add_argument("query", help="Términos de búsqueda (ej. 'muro bloque')")
+    pcs.add_argument("--limit", type=int, default=20)
+    pci = psub.add_parser("catalogo-item", help="Detalle completo de un renglón PRECONS III")
+    pci.add_argument("codigo", help="Código oficial (ej. '030222')")
+    pcr = psub.add_parser("catalogo-recursos", help="Búsqueda en los 4,383 recursos (materiales, equipos, mano de obra)")
+    pcr.add_argument("query", nargs="?", default="", help="Término de búsqueda")
+    pcr.add_argument("--tipo", choices=["MATERIAL", "EQUIPMENT", "LABOR"], default=None)
+    pcr.add_argument("--limit", type=int, default=20)
+    pca_apu = psub.add_parser("catalogo-apu", help="Cálculo de Análisis de Precio Unitario con coeficientes oficiales")
+    pca_apu.add_argument("codigo", help="Código del renglón")
+    pca_apu.add_argument("--qty", type=float, default=1.0, help="Cantidad a presupuestar")
 
     p = sub.add_parser("importar", help="Importación de archivos externos (spec 94)")
     psub = p.add_subparsers(dest="subcommand", required=True)
@@ -626,6 +666,14 @@ def _build_parser() -> argparse.ArgumentParser:
     # -- demo / selftest / plugins ------------------------------------------------------------------------------
     p = sub.add_parser("demo", help="Crear el proyecto de demostración")
     p.add_argument("--out", default=os.path.join("output", "demo.arqgen"))
+    p = sub.add_parser("generate", help="Generador de Arquitectura Sin IA V2 (procedimental/algorítmico)")
+    p.add_argument("file", help="Ruta del proyecto (.arqgen)")
+    p.add_argument("--template", choices=["VIVIENDA_1D", "VIVIENDA_2D", "VIVIENDA_3D"], default="VIVIENDA_2D",
+                   help="Tipología arquitectónica")
+    p.add_argument("--width", type=float, default=None, help="Ancho de la planta (m)")
+    p.add_argument("--depth", type=float, default=None, help="Profundidad de la planta (m)")
+    p.add_argument("--dxf", default="", help="Ruta opcional para exportar DXF")
+    p.add_argument("--ifc", default="", help="Ruta opcional para exportar IFC")
     p = sub.add_parser("selftest", help="Verificación integral interna")
     from app.cli_fases import add_parsers as add_v13_parsers
     add_v13_parsers(sub)
@@ -1887,6 +1935,94 @@ def cmd_struct_report(application, args) -> int:
     return 0
 
 
+def cmd_struct_nc_viga(application, args) -> int:
+    from engines.cuban_standards_engine import design_concrete_beam
+    res = design_concrete_beam(
+        b_m=args.b, h_m=args.h, mu_kn_m=args.mu, vu_kn=args.vu,
+        fc_mpa=args.fc, fy_mpa=args.fy
+    )
+    print("=" * 60)
+    print("DISEÑO DE VIGA DE HORMIGÓN ARMADO — NC 207 / NC 450")
+    print("=" * 60)
+    print(f"Sección:          b = {res.b_m*100:.0f} cm, h = {res.h_m*100:.0f} cm (d = {res.d_m*100:.1f} cm)")
+    print(f"Materiales:       Hormigón f'c = {res.fc_mpa:.0f} MPa | Acero fy = {res.fy_mpa:.0f} MPa")
+    print(f"Solicitaciones:   Mu = {res.mu_kn_m:.2f} kN·m | Vu = {res.vu_kn:.2f} kN")
+    print("-" * 60)
+    print(f"Armadura Long.:   As requerida = {res.as_req_cm2:.2f} cm² (As mín = {res.as_min_cm2:.2f} cm²)")
+    print(f"Barras Sugeridas: {res.bars_recommended}")
+    print(f"Capacidad Flexión:φ·Mn = {res.phi_mn_kn_m:.2f} kN·m (Utilización: {res.utilization_flexure*100:.1f}%)")
+    print("-" * 60)
+    print(f"Capacidad Cortante:φ·Vc = {res.phi_vc_kn:.2f} kN")
+    print(f"Estribos:         {res.stirrups_recommended}")
+    print(f"ESTADO FINAL:     {res.status}")
+    return 0
+
+
+def cmd_struct_nc_columna(application, args) -> int:
+    from engines.cuban_standards_engine import design_concrete_column
+    res = design_concrete_column(
+        b_m=args.b, h_m=args.h, pu_kn=args.pu, mu_kn_m=args.mu,
+        fc_mpa=args.fc, num_bars=args.bars, bar_diameter_mm=args.diam
+    )
+    print("=" * 60)
+    print("VERIFICACIÓN DE COLUMNA Y DIAGRAMA P-M — NC 207 / NC 450")
+    print("=" * 60)
+    print(f"Sección:          {res.b_m*100:.0f} x {res.h_m*100:.0f} cm")
+    print(f"Armadura:         {res.rebar_summary}")
+    print(f"Solicitaciones:   Pu = {res.pu_kn:.1f} kN | Mu = {res.mu_kn_m:.1f} kN·m")
+    print("-" * 60)
+    print(f"Compresión Máx.:  P0 = {res.p0_kn:.1f} kN | φ·Pn(máx) = {res.phi_pn_max_kn:.1f} kN")
+    print(f"Punto Balanceado: Pb = {res.pb_kn:.1f} kN | Mb = {res.mb_kn_m:.1f} kN·m")
+    print(f"Ratio Utilización:{res.utilization:.3f}")
+    print(f"ESTADO:           {res.status}")
+    print("\nPuntos de la Envolvente P-M resistente:")
+    _print_table([[f"{pt[0]:.1f}", f"{pt[1]:.1f}"] for pt in res.pm_curve],
+                 ["Momento φ·Mn (kN·m)", "Axial φ·Pn (kN)"])
+    return 0
+
+
+def cmd_struct_nc_viento(application, args) -> int:
+    from engines.cuban_standards_engine import calculate_wind_nc285
+    res = calculate_wind_nc285(
+        provincia=args.provincia, building_width_m=args.ancho,
+        building_height_m=args.alto, terrain_cat=args.terreno
+    )
+    print("=" * 60)
+    print("CARGA DE VIENTO SEGÚN NORMA CUBANA NC 285")
+    print("=" * 60)
+    print(f"Ubicación:        {res.provincia} ({res.region})")
+    print(f"Velocidad Básica: V10 = {res.v10_ms:.1f} m/s ({res.v10_ms*3.6:.0f} km/h)")
+    print(f"Presión Dinámica: q10 = {res.q10_pa:.1f} Pa ({res.q10_pa/1000:.3f} kPa)")
+    print(f"Factor Altura Ce: {res.ce_factor:.3f} (Terreno tipo {res.terrain_category}, z = {res.height_m:.1f} m)")
+    print(f"Presión de Cálculo: qz = {res.qz_pa:.1f} Pa")
+    print("-" * 60)
+    print(f"Presión Barlovento: {res.p_windward_kpa:.3f} kPa (Cp = +0.80)")
+    print(f"Succión Sotavento:  {res.p_leeward_kpa:.3f} kPa (Cp = -0.50)")
+    print(f"Fuerza Total en Fachada: {res.total_lateral_force_kn:.2f} kN")
+    print(f"Momento de Vuelco:       {res.overturning_moment_kn_m:.2f} kN·m")
+    return 0
+
+
+def cmd_struct_nc_sismo(application, args) -> int:
+    from engines.cuban_standards_engine import calculate_seismic_nc46
+    res = calculate_seismic_nc46(
+        provincia=args.provincia, building_area_m2=args.area,
+        building_height_m=args.alto, num_stories=args.niveles
+    )
+    print("=" * 60)
+    print("CORTANTE BASAL SÍSMICO SEGÚN NORMA CUBANA NC 46")
+    print("=" * 60)
+    print(f"Ubicación:         {res.provincia}")
+    print(f"Zonificación:      {res.zona_sismica} (Aceleración amax = {res.amax_g:.2f} g)")
+    print(f"Perfil de Suelo:   Tipo {res.soil_type} (Factor S = {res.soil_factor_s:.1f})")
+    print(f"Periodo T:         {res.fundamental_period_s:.3f} s")
+    print(f"Coeficiente Sísmico Cs: {res.seismic_coefficient_cs:.3f}")
+    print("-" * 60)
+    print(f"Peso Sísmico Estimado W: {res.building_weight_kn:.1f} kN")
+    print(f"FUERZA CORTANTE BASAL V: {res.base_shear_kn:.2f} kN")
+    return 0
+
+
 # -- security commands (spec 37-49) ---------------------------------------------------
 def _security_service(context):
     from services.security_service import SecurityService
@@ -2225,6 +2361,102 @@ def cmd_precons_import(application, args) -> int:
     return 0
 
 
+def cmd_precons_catalogo_build(application, args) -> int:
+    from services.precons_catalog_service import PreconsCatalogService
+    out_path = args.out or None
+    print(f"Compilando catálogo oficial PRECONS III desde {args.excel}...")
+    res = PreconsCatalogService.build_catalog_db(args.excel, out_path)
+    print(f"[OK] Base de datos compilada: {res['db_path']}")
+    print(f"     - Renglones indexados: {res['renglones']}")
+    print(f"     - Recursos indexados:  {res['recursos']}")
+    print(f"     - Parámetros/Límites:  {res['parametros']}")
+    return 0
+
+
+def cmd_precons_catalogo_search(application, args) -> int:
+    from services.precons_catalog_service import PreconsCatalogService
+    srv = PreconsCatalogService()
+    results = srv.search_renglones(args.query, limit=args.limit)
+    if not results:
+        print(f"No se encontraron renglones para: '{args.query}'")
+        return 0
+    print(f"Resultados para '{args.query}' ({len(results)} de 15,981 renglones):")
+    _print_table(
+        [[r["codigo"], r["descripcion"][:65], r["unidad"],
+          f"{r['materiales_cup']:.2f}", f"{r['mano_obra_cup']:.2f}",
+          f"{r['equipos_cup']:.2f}", f"{r['total_cup']:.2f}"]
+         for r in results],
+        ["Código", "Descripción", "UM", "Mat (CUP)", "MO (CUP)", "Eq (CUP)", "Total (CUP)"]
+    )
+    return 0
+
+
+def cmd_precons_catalogo_item(application, args) -> int:
+    from services.precons_catalog_service import PreconsCatalogService
+    srv = PreconsCatalogService()
+    item = srv.get_renglon(args.codigo)
+    if not item:
+        print(f"[ERROR] Renglón {args.codigo} no encontrado")
+        return 1
+    print(f"Renglón PRECONS III: {item['codigo']}")
+    print(f"Descripción: {item['descripcion']}")
+    print(f"Sección:     {item['seccion']} (Cod: {item['seccion_cod']})")
+    print(f"Capítulo:    {item['capitulo']} -> {item['subcapitulo']}")
+    print(f"Unidad:      {item['unidad']}")
+    print("-" * 50)
+    print("Desglose de Costo Directo (CUP):")
+    print(f"  Materiales:    {item['materiales_cup']:>10.2f} CUP")
+    print(f"  Mano de Obra:  {item['mano_obra_cup']:>10.2f} CUP")
+    print(f"  Equipos:       {item['equipos_cup']:>10.2f} CUP")
+    print(f"  TOTAL DIRECTO: {item['total_cup']:>10.2f} CUP")
+    return 0
+
+
+def cmd_precons_catalogo_recursos(application, args) -> int:
+    from services.precons_catalog_service import PreconsCatalogService
+    srv = PreconsCatalogService()
+    results = srv.search_recursos(args.query, kind=args.tipo, limit=args.limit)
+    if not results:
+        print("No se encontraron recursos.")
+        return 0
+    print(f"Recursos PRECONS III ({len(results)} encontrados):")
+    _print_table(
+        [[r["codigo"], r["descripcion"][:60], r["tipo"], r["unidad"],
+          f"{r['precio_cup']:.2f}" if r["precio_cup"] else "—",
+          f"{r['peso_kg']:.2f}" if r["peso_kg"] else "—"]
+         for r in results],
+        ["Código", "Descripción", "Tipo", "UM", "Precio (CUP)", "Peso (kg)"]
+    )
+    return 0
+
+
+def cmd_precons_catalogo_apu(application, args) -> int:
+    from services.precons_catalog_service import PreconsCatalogService
+    srv = PreconsCatalogService()
+    try:
+        apu = srv.calculate_apu(args.codigo, quantity=args.qty)
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        return 1
+    print(f"ANÁLISIS DE PRECIO UNITARIO (APU) — PRECONS III")
+    print(f"Partida / Renglón: {apu['codigo']} — {apu['descripcion']}")
+    print(f"Cantidad:          {apu['cantidad']} {apu['unidad']}")
+    print("-" * 55)
+    print("1. Costos Directos:")
+    print(f"   Materiales:     {apu['costo_directo']['materiales']:>10.2f} CUP")
+    print(f"   Mano de Obra:   {apu['costo_directo']['mano_obra']:>10.2f} CUP")
+    print(f"   Equipos:        {apu['costo_directo']['equipos']:>10.2f} CUP")
+    print(f"   Subtotal CD:    {apu['costo_directo']['subtotal']:>10.2f} CUP")
+    print("2. Coeficientes Oficiales:")
+    print(f"   Transporte ({apu['coeficientes']['transporte_pct']}%): {apu['coeficientes']['transporte_cup']:>8.2f} CUP")
+    print(f"   Indirectos ({apu['coeficientes']['indirectos_pct']}%): {apu['coeficientes']['indirectos_cup']:>8.2f} CUP")
+    print(f"   Utilidad   ({apu['coeficientes']['beneficio_pct']}%): {apu['coeficientes']['beneficio_cup']:>8.2f} CUP")
+    print("-" * 55)
+    print(f"PRECIO UNITARIO:   {apu['precio_unitario']:>10.2f} {apu['moneda']}/{apu['unidad']}")
+    print(f"TOTAL PRESUPUESTO: {apu['total_cup']:>10.2f} {apu['moneda']}")
+    return 0
+
+
 def _print_import_report(report: dict, prices: dict | None = None) -> None:
     import json as _json
     public = {k: v for k, v in report.items() if not k.startswith("_")}
@@ -2353,8 +2585,47 @@ def cmd_bim_show(application, args) -> int:
     return 0
 
 
+def cmd_generate(application, args) -> int:
+    import os
+    if os.path.exists(args.file):
+        context = application.open_project(args.file)
+    else:
+        context = application.create_project(args.file, name=f"Vivienda {args.template}")
+
+    from services.generative_architecture_service import GenerativeArchitectureService
+    gen = GenerativeArchitectureService(context)
+    result = gen.generate(
+        template_key=args.template,
+        width=args.width,
+        depth=args.depth
+    )
+    print("=" * 65)
+    print(f"GENERADOR DE ARQUITECTURA SIN IA V2 — {result['title']}")
+    print("=" * 65)
+    print(f"Dimensiones: {result['dimensions']['width']:.2f} m x {result['dimensions']['depth']:.2f} m")
+    print(f"Superficie Útil: {result['summary']['total_built_area_m2']:.2f} m² | Muros: {result['summary']['wall_volume_m3']:.2f} m³")
+    print(f"Elementos: {result['summary']['spaces']} locales, {result['summary']['walls']} muros, "
+          f"{result['summary']['doors']} puertas, {result['summary']['windows']} ventanas")
+    print("\nLocales Generados:")
+    _print_table([[s["code"], s["name"], f"{s['area_m2']:.2f} m²"] for s in result["spaces"]],
+                 ["Código", "Nombre", "Área"])
+
+    if args.dxf:
+        from exporters.dxf_exporter import DXFExporter
+        DXFExporter().export(context, args.dxf)
+        print(f"[OK] Plano DXF exportado: {args.dxf}")
+    if args.ifc:
+        from exporters.ifc_exporter import IfcExporter
+        IfcExporter().export(context, args.ifc)
+        print(f"[OK] Modelo IFC exportado: {args.ifc}")
+
+    context.close()
+    return 0
+
+
 # -- entry point ------------------------------------------------------------------
 HANDLERS = {
+    (None, "generate"): cmd_generate,
     ("project", "create"): cmd_project_create,
     ("project", "info"): cmd_project_info,
     ("level", "add"): cmd_level_add,
@@ -2430,6 +2701,10 @@ HANDLERS = {
     ("struct", "truss"): cmd_struct_truss,
     ("struct", "connection-check"): cmd_struct_connection_check,
     ("struct", "report"): cmd_struct_report,
+    ("struct", "nc-viga"): cmd_struct_nc_viga,
+    ("struct", "nc-columna"): cmd_struct_nc_columna,
+    ("struct", "nc-viento"): cmd_struct_nc_viento,
+    ("struct", "nc-sismo"): cmd_struct_nc_sismo,
     ("sec", "net"): cmd_sec_net,
     ("sec", "device-add"): cmd_sec_device_add,
     ("sec", "coverage"): cmd_sec_coverage,
@@ -2449,6 +2724,11 @@ HANDLERS = {
     ("precons", "project"): cmd_precons_project,
     ("precons", "compare"): cmd_precons_compare,
     ("precons", "import"): cmd_precons_import,
+    ("precons", "catalogo-build"): cmd_precons_catalogo_build,
+    ("precons", "catalogo-search"): cmd_precons_catalogo_search,
+    ("precons", "catalogo-item"): cmd_precons_catalogo_item,
+    ("precons", "catalogo-recursos"): cmd_precons_catalogo_recursos,
+    ("precons", "catalogo-apu"): cmd_precons_catalogo_apu,
     ("importar", "catalogo"): cmd_importar_catalogo,
     ("importar", "dxf"): cmd_importar_dxf,
     ("bim", "tree"): cmd_bim_tree,
