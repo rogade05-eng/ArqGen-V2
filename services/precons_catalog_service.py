@@ -27,7 +27,13 @@ class PreconsCatalogService:
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or DEFAULT_DB_PATH
         if not os.path.exists(self.db_path) and os.path.exists(DEFAULT_EXCEL_PATH):
-            self.build_catalog_db(DEFAULT_EXCEL_PATH, self.db_path)
+            try:
+                self.build_catalog_db(DEFAULT_EXCEL_PATH, self.db_path)
+            except Exception as e:
+                import logging
+                logging.getLogger("PreconsCatalogService").warning(
+                    "No se pudo compilar la base de datos PRECONS III automáticamente: %s", e
+                )
 
     def _conn(self) -> sqlite3.Connection:
         if not os.path.exists(self.db_path):
