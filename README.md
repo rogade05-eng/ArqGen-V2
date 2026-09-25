@@ -9,11 +9,12 @@
 
 | Pilar V2 | Estado | Detalle |
 |---|---|---|
-| **Generador de Arquitectura Sin IA V2** | ✔ nuevo | Generación procedural determinista de plantas completas sin redes neuronales ni alucinaciones: zonificación ortogonal (Social, Servicios, Privada), trazado automático de muros perimetrales e interiores, dimensionamiento normativo de puertas y ventanas, cálculo QTO instantáneo y exportación DXF/IFC. Comando `main.py generate`. |
+| **Generador de Arquitectura Sin IA V2** | ✔ nuevo | Generación procedural determinista de plantas completas sin redes neuronales ni alucinaciones: zonificación ortogonal (Social, Servicios, Privada), trazado automático de muros perimetrales e interiores, dimensionamiento normativo de puertas y ventanas, integración automática de redes coordinadas MEP (Electricidad, Agua Fría, Drenaje, SADI, CCTV), cálculo QTO instantáneo y exportación DXF/IFC. Comando `main.py generate`. |
+| **Instalaciones MEP, Bioclimático y Seguridad (Normas Cubanas)** | ✔ nuevo | Motores normativos de ingeniería: **Bioclimático** (clima tropical Cuba Aw, orientación solar, aleros y ratios NC de iluminación &ge;10% y ventilación &ge;5%), **Hidráulico y Sanitario** (dotación cubana 200 L/hab/d, cisterna para 2.5 días, tanque elevado, bomba HP, Hunter UF y fosa séptica), **Cuadro Eléctrico 120/240V 60Hz** (circuitos C1-C5, alimentador, breakers y verificación &Delta;V &le; 3%), **SADI** (detección humo/calor, pulsadores, sirenas, batería 24h+30min según NC 96 / NFPA 72), **SACI** (extintores PQS ABC 6kg, CO2, gabinetes BIE y agua de incendio) y **CCTV** (cámaras IP 4MP H.265, 30 días de grabación en TB, switch PoE y Cat6). Comandos `mep bioclimatic|hydraulic|electrical|sadi|saci|cctv`. |
 | **Catálogo PRECONS III Oficial (RoPres 3.30)** | ✔ nuevo | Base de datos indexada con FTS5 de los **15,981 renglones variantes** y **4,383 recursos** (materiales, equipos, mano de obra) con precios oficiales CUP y coeficientes de transporte, indirectos y utilidad. Búsqueda en <1 ms y cálculo de APU. Comandos `precons catalogo-search|item|recursos|apu|build`. |
 | **Cálculos y Normas Cubanas (NC)** | ✔ nuevo | **NC 207 / NC 450** (vigas a flexión/cortante y columnas con diagrama de interacción P-M y cuantías de acero), **NC 285** (cargas de viento por provincias de Cuba, ráfaga y presiones barlovento/sotavento) y **NC 46** (espectro sísmico y cortante basal por zonas de peligrosidad). Comandos `struct nc-viga|columna|viento|sismo`. |
-| **ArqGen V2 Web Studio (2D CAD & 3D BIM)** | ✔ nuevo | Aplicación web interactiva en puerto 3000 con **Lienzo 2D CAD** (pan, zoom, cotas, dibujo arquitectónico de muros y vanos), **Visor 3D BIM** (Three.js WebGL con sombras y control orbital), wizard del generador y explorador PRECONS en tiempo real. |
-| **Multiplataforma y Modo Headless** | ✔ optimizado | Módulos desacoplados de `tkinter` para ejecución fluida en Linux, servidores, contenedores y CI/CD sin display (suite de 445 pruebas unitarias pasando al 100%). |
+| **ArqGen V2 Web Studio (2D CAD & 3D BIM & MEP)** | ✔ nuevo | Aplicación web interactiva en puerto 3000 con **Lienzo 2D CAD** con capas conmutables (Arq, Elec, Agua, Drenaje, SADI, CCTV), **Visor 3D BIM** (Three.js WebGL con sombras y control orbital), wizard del generador con informe bioclimático, explorador PRECONS y banco de cálculo de Normas Cubanas. |
+| **Multiplataforma y Modo Headless** | ✔ optimizado | Módulos desacoplados de `tkinter` para ejecución fluida en Linux, servidores, contenedores y CI/CD sin display (suite de 453 pruebas unitarias pasando al 100%). |
 
 | Componente | Estado | Detalle |
 |---|---|---|
@@ -152,6 +153,28 @@ Sanitaria y HVAC:
 04_EJECUTAR.bat hvac loads proyectos\mi_obra.arqgen                            (tabla de los 4 locales)
 04_EJECUTAR.bat hvac duct proyectos\mi_obra.arqgen --flow 800 --kind MAIN     (dimensionado puntual)
 04_EJECUTAR.bat hvac size-network proyectos\mi_obra.arqgen --network MEP-NETWORK-004
+```
+
+### Comandos V2.0.0: MEP, Bioclimático y Seguridad Integral (Normas Cubanas)
+
+```bash
+# 1. Análisis Bioclimático (Cuba tropical Aw, orientación solar, aleros y ratios NC de iluminación/ventilación)
+python main.py mep bioclimatic --ancho 10 --fondo 8 --orientacion SUR
+
+# 2. Dimensionamiento Hidrosanitario (NC dotación 200 L/hab/d, cisterna 2.5d, bomba, Hunter y fosa séptica)
+python main.py mep hydraulic --habitantes 5 --dias 2.5
+
+# 3. Cuadro Eléctrico 120/240V 60Hz (cargas de demanda, interruptor ppal, alimentador y caída de tensión <= 3%)
+python main.py mep electrical --area 85 --ac-units 2
+
+# 4. SADI Detección Automática de Incendios (NC 96 / NFPA 72: detectores humo/calor, pulsador, sirena, batería)
+python main.py mep sadi --area 85
+
+# 5. SACI Extinción Manual (NC 96 / NFPA 10: extintores PQS ABC 6kg, CO2 panel eléctrico, BIE, reserva fuego)
+python main.py mep saci --area 85 --riesgo LEVE
+
+# 6. Seguridad Electrónica CCTV (cámaras IP 4MP H.265, 30 días almacenamiento continuo en TB, switch PoE, Cat6)
+python main.py mep cctv
 ```
 
 ### Interfaz gráfica (FASE 90, spec 90-93; editable desde v1.6.0)

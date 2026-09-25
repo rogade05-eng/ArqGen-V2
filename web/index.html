@@ -79,7 +79,10 @@
         <span>📊</span> PRECONS III (15,981)
       </button>
       <button onclick="switchTab('engineering')" id="tab-btn-engineering" class="tab-btn px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 text-gray-400 hover:text-white transition">
-        <span>🏗️</span> Normas Cubanas (NC)
+        <span>🏗️</span> Estructuras NC
+      </button>
+      <button onclick="switchTab('mep')" id="tab-btn-mep" class="tab-btn px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 text-gray-400 hover:text-white transition">
+        <span>⚡💧</span> MEP & Seguridad
       </button>
     </nav>
 
@@ -103,10 +106,20 @@
     <div id="view-2d" class="flex-1 flex flex-col h-full">
       <!-- Toolbar -->
       <div class="bg-dark-card/60 backdrop-blur border-b border-dark-border px-4 py-2 flex items-center justify-between text-xs text-gray-400">
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
           <span class="font-semibold text-gray-200" id="cad-proj-title">Vivienda Estándar 2 Dormitorios</span>
           <span id="cad-dimensions" class="bg-dark-hover px-2 py-0.5 rounded text-blue-400 border border-dark-border">8.50 x 9.50 m</span>
           <span id="cad-area" class="bg-dark-hover px-2 py-0.5 rounded text-emerald-400 border border-dark-border">80.75 m²</span>
+        </div>
+        <!-- LAYER TOGGLES -->
+        <div class="flex items-center gap-2 bg-dark-base px-2.5 py-1 rounded-lg border border-dark-border text-[11px]">
+          <span class="text-gray-400 font-semibold mr-1">Capas:</span>
+          <label class="flex items-center gap-1 cursor-pointer text-gray-300 hover:text-white"><input type="checkbox" id="layer-arch" checked onchange="drawCAD()"> Arq</label>
+          <label class="flex items-center gap-1 cursor-pointer text-yellow-400 hover:text-yellow-300"><input type="checkbox" id="layer-elec" checked onchange="drawCAD()"> ⚡ Elec</label>
+          <label class="flex items-center gap-1 cursor-pointer text-sky-400 hover:text-sky-300"><input type="checkbox" id="layer-water" checked onchange="drawCAD()"> 💧 Agua</label>
+          <label class="flex items-center gap-1 cursor-pointer text-emerald-400 hover:text-emerald-300"><input type="checkbox" id="layer-drain" checked onchange="drawCAD()"> 🚽 Drenaje</label>
+          <label class="flex items-center gap-1 cursor-pointer text-rose-400 hover:text-rose-300"><input type="checkbox" id="layer-fire" checked onchange="drawCAD()"> 🔥 SADI</label>
+          <label class="flex items-center gap-1 cursor-pointer text-purple-400 hover:text-purple-300"><input type="checkbox" id="layer-cctv" checked onchange="drawCAD()"> 📹 CCTV</label>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="resetZoom()" class="px-2 py-1 bg-dark-hover hover:bg-dark-border rounded text-gray-300">Ajustar Vista (F)</button>
@@ -177,6 +190,14 @@
               <input type="number" step="0.1" value="2.80" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-sm text-white font-mono" disabled>
             </div>
           </div>
+
+          <div class="p-3 bg-dark-base border border-dark-border rounded-lg space-y-2">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="gen-include-mep" checked class="rounded bg-dark-input border-dark-border text-blue-600 focus:ring-0">
+              <span class="text-xs font-semibold text-gray-200">Generar Instalaciones MEP & Seguridad</span>
+            </label>
+            <p class="text-[11px] text-gray-400 pl-5">Crea automáticamente Cuadro Eléctrico, Luminarias LED, Cisterna, Bomba, SADI y CCTV enlazados.</p>
+          </div>
         </div>
 
         <button onclick="triggerGenerate()" id="btn-generate-run" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition">
@@ -190,10 +211,29 @@
 
       <!-- Live preview of generated spaces breakdown -->
       <div class="flex-1 bg-dark-card border border-dark-border rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
-        <h3 class="text-sm font-bold text-white flex items-center justify-between">
-          <span>Programa Arquitectónico Generado</span>
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white">Programa Arquitectónico Generado</h3>
           <span id="gen-badge-area" class="text-xs font-normal px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Total: 80.75 m²</span>
-        </h3>
+        </div>
+
+        <!-- Bioclimatic & MEP Summary Cards -->
+        <div id="gen-mep-summary-container" class="grid grid-cols-2 gap-3 text-xs">
+          <div class="p-3 bg-dark-base border border-dark-border rounded-lg space-y-1">
+            <div class="flex items-center justify-between text-gray-300 font-semibold">
+              <span>🌿 Bioclimático (Cuba Aw)</span>
+              <span id="gen-bio-compliance" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">ÓPTIMO</span>
+            </div>
+            <div id="gen-bio-details" class="text-[11px] text-gray-400">Orientación E-O favorable, ventilación cruzada y aleros calculados.</div>
+          </div>
+          <div class="p-3 bg-dark-base border border-dark-border rounded-lg space-y-1">
+            <div class="flex items-center justify-between text-gray-300 font-semibold">
+              <span>⚡ Redes Integradas MEP</span>
+              <span id="gen-mep-count" class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">5 Redes</span>
+            </div>
+            <div id="gen-mep-details" class="text-[11px] text-gray-400">Electricidad 120/240V, Agua Fría, Desagüe, SADI y CCTV coordinados.</div>
+          </div>
+        </div>
+
         <div class="flex-1 overflow-y-auto">
           <table class="w-full text-xs text-left">
             <thead class="text-gray-400 bg-dark-base uppercase text-[10px] sticky top-0">
@@ -421,6 +461,199 @@
       </div>
     </div>
 
+    <!-- 6. VIEW: MEP & SEGURIDAD INTEGRAL -->
+    <div id="view-mep" class="flex-1 flex overflow-hidden hidden p-6 gap-6">
+      <!-- Sidebar Nav for MEP Calcs -->
+      <div class="w-64 bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col gap-2">
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Instalaciones & Seguridad</h3>
+        <button onclick="switchMepCalc('bioclimatic')" id="mep-btn-bioclimatic" class="mep-btn active w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium bg-blue-600 text-white flex items-center gap-2 transition">
+          <span>🌿</span> Bioclimático (Cuba Aw)
+        </button>
+        <button onclick="switchMepCalc('hydraulic')" id="mep-btn-hydraulic" class="mep-btn w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover flex items-center gap-2 transition">
+          <span>💧</span> Hidráulico & Sanitario (NC)
+        </button>
+        <button onclick="switchMepCalc('electrical')" id="mep-btn-electrical" class="mep-btn w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover flex items-center gap-2 transition">
+          <span>⚡</span> Cuadro Eléctrico 120/240V
+        </button>
+        <button onclick="switchMepCalc('sadi')" id="mep-btn-sadi" class="mep-btn w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover flex items-center gap-2 transition">
+          <span>🔥</span> SADI Detección Incendio
+        </button>
+        <button onclick="switchMepCalc('saci')" id="mep-btn-saci" class="mep-btn w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover flex items-center gap-2 transition">
+          <span>🧯</span> SACI Extinción & BIE
+        </button>
+        <button onclick="switchMepCalc('cctv')" id="mep-btn-cctv" class="mep-btn w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium text-gray-300 hover:bg-dark-hover flex items-center gap-2 transition">
+          <span>📹</span> CCTV & Seguridad NVR
+        </button>
+
+        <div class="mt-auto bg-dark-base border border-dark-border rounded-lg p-3 text-[11px] text-gray-400 space-y-1">
+          <div class="font-bold text-gray-300">Normativa Aplicada:</div>
+          <div>• NC Dotación (200 L/hab/d)</div>
+          <div>• NC 96-01 / 96-02 Protección Fuego</div>
+          <div>• NFPA 10, 72 & Código Eléctrico</div>
+        </div>
+      </div>
+
+      <!-- MEP Calculator Workbenches -->
+      <div class="flex-1 bg-dark-card border border-dark-border rounded-xl p-6 overflow-y-auto">
+        <!-- 1. Bioclimatic Calc -->
+        <div id="mep-calc-bioclimatic" class="space-y-6">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>🌿</span> Análisis Bioclimático y Confort Pasivo (Clima Tropical Cuba Aw)
+            </h3>
+            <p class="text-xs text-gray-400 mt-1">Evaluación de insolación solar, aleros de protección, ventilación cruzada y ratios de vanos según Normas Cubanas.</p>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Ancho Edificación (m)</label>
+              <input type="number" id="mep-bio-w" value="8.50" step="0.5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Profundidad (m)</label>
+              <input type="number" id="mep-bio-d" value="9.50" step="0.5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Orientación Fachada Principal</label>
+              <select id="mep-bio-orient" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+                <option value="SUR" selected>SUR (Recomendada en Cuba)</option>
+                <option value="NORTE">NORTE (Favorable)</option>
+                <option value="SURESTE">SURESTE (Vientos Alisios)</option>
+                <option value="NORESTE">NORESTE (Vientos Alisios)</option>
+                <option value="ESTE">ESTE (Insolación Matutina)</option>
+                <option value="OESTE">OESTE (Insolación Crítica Vespertina)</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="calculateBioclimatic()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Desempeño Bioclimático</button>
+          <div id="mep-bio-results" class="border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+
+        <!-- 2. Hydraulic Calc -->
+        <div id="mep-calc-hydraulic" class="space-y-6 hidden">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>💧</span> Dimensionamiento Hidráulico, Bombeo y Fosa Séptica
+            </h3>
+            <p class="text-xs text-gray-400 mt-1">Cálculo de cisterna, tanque elevado, bomba centrífuga de elevación y tratamiento de aguas residuales según dotación cubana (200 L/hab/día).</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Número de Ocupantes</label>
+              <input type="number" id="mep-hyd-occ" value="4" min="1" max="50" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Días de Reserva Cisterna (Autonomía)</label>
+              <input type="number" id="mep-hyd-aut" value="2.5" step="0.5" min="1" max="10" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+          </div>
+          <button onclick="calculateHydraulic()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Instalación Hidrosanitaria</button>
+          <div id="mep-hyd-results" class="border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+
+        <!-- 3. Electrical Calc -->
+        <div id="mep-calc-electrical" class="space-y-6 hidden">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>⚡</span> Cuadro Eléctrico General 120/240V 60Hz y Circuitos Ramales
+            </h3>
+            <p class="text-xs text-gray-400 mt-1">Distribución de circuitos C1-C5, alimentador principal, interruptores termomagnéticos y verificación de caída de tensión (&le; 3%).</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="flex items-center gap-2 cursor-pointer mt-4">
+                <input type="checkbox" id="mep-elec-ac" checked class="rounded bg-dark-input border-dark-border text-blue-600">
+                <span class="text-xs text-gray-200">Incluir Climatización A/C (Split 240V, 20A)</span>
+              </label>
+            </div>
+            <div>
+              <label class="flex items-center gap-2 cursor-pointer mt-4">
+                <input type="checkbox" id="mep-elec-heater" checked class="rounded bg-dark-input border-dark-border text-blue-600">
+                <span class="text-xs text-gray-200">Incluir Calentador de Agua Eléctrico (240V, 20A)</span>
+              </label>
+            </div>
+          </div>
+          <button onclick="calculateElectrical()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Cuadro Eléctrico</button>
+          <div id="mep-elec-results" class="border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+
+        <!-- 4. SADI Calc -->
+        <div id="mep-calc-sadi" class="space-y-6 hidden">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>🔥</span> Sistema Automático de Detección de Incendio (SADI) — NC 96 / NFPA 72
+            </h3>
+            <p class="text-xs text-gray-400 mt-1">Cálculo de detectores ópticos de humo, detectores térmicos de cocina, pulsadores manuales, sirenas y batería de respaldo 24h+30min.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Área Total Edificación (m²)</label>
+              <input type="number" id="mep-sadi-area" value="80.0" step="5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Uso de la Edificación</label>
+              <select id="mep-sadi-use" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+                <option value="RESIDENCIAL_LIGERO">Residencial Ligero</option>
+                <option value="COMERCIAL">Comercial</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="calculateSadi()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Requerimientos SADI</button>
+          <div id="mep-sadi-results" class="border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+
+        <!-- 5. SACI Calc -->
+        <div id="mep-calc-saci" class="space-y-6 hidden">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>🧯</span> Sistema de Extinción y Protección Contra Incendios (SACI) — NC 96 / NFPA 10
+            </h3>
+            <p class="text-xs text-gray-400 mt-1">Dotación de extintores portátiles PQS ABC 6kg, CO2 para panel eléctrico, gabinetes BIE y reserva de agua contra fuego.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Área Total Edificación (m²)</label>
+              <input type="number" id="mep-saci-area" value="80.0" step="5" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+            </div>
+            <div>
+              <label class="text-xs text-gray-300 block mb-1">Clasificación de Riesgo</label>
+              <select id="mep-saci-risk" class="w-full bg-dark-input border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white">
+                <option value="RESIDENCIAL_LIGERO" selected>Riesgo Ligero (Residencial / Oficinas)</option>
+                <option value="ORDINARIO">Riesgo Ordinario (Almacén / Comercial)</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="calculateSaci()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Dotación SACI</button>
+          <div id="mep-saci-results" class="border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+
+        <!-- 6. CCTV Calc -->
+        <div id="mep-calc-cctv" class="space-y-6 hidden">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <span>📹</span> Circuito Cerrado de Televisión (CCTV) y Grabación NVR
+            </h3>
+            <p class="text-xs text-gray-400 mt-1">Cálculo de cámaras perimetrales IP 4MP H.265, ancho de banda de red, presupuesto PoE, cableado Cat 6 y almacenamiento útil en TB.</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="flex items-center gap-2 cursor-pointer mt-4">
+                <input type="checkbox" id="mep-cctv-portal" checked class="rounded bg-dark-input border-dark-border text-blue-600">
+                <span class="text-xs text-gray-200">Cámara Acceso Portal / Entrada Principal</span>
+              </label>
+            </div>
+            <div>
+              <label class="flex items-center gap-2 cursor-pointer mt-4">
+                <input type="checkbox" id="mep-cctv-patio" checked class="rounded bg-dark-input border-dark-border text-blue-600">
+                <span class="text-xs text-gray-200">Cámara Fondo Patio / Servicio Exterior</span>
+              </label>
+            </div>
+          </div>
+          <button onclick="calculateCctv()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow">Calcular Sistema CCTV</button>
+          <div id="mep-cctv-results" class="border-t border-dark-border pt-4 mt-4 space-y-3"></div>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <script>
@@ -466,7 +699,7 @@
         activeBtn.classList.add('bg-blue-600', 'text-white');
       }
 
-      ['2d', '3d', 'generator', 'precons', 'engineering'].forEach(t => {
+      ['2d', '3d', 'generator', 'precons', 'engineering', 'mep'].forEach(t => {
         const el = document.getElementById(`view-${t}`);
         if (el) el.classList.toggle('hidden', t !== tab);
       });
@@ -476,7 +709,26 @@
       } else if (tab === '3d') {
         if (!threeInitialized) initThree();
         else updateThreeScene();
+      } else if (tab === 'mep') {
+        calculateBioclimatic();
       }
+    }
+
+    function switchMepCalc(calc) {
+      document.querySelectorAll('.mep-btn').forEach(b => {
+        b.classList.remove('bg-blue-600', 'text-white');
+        b.classList.add('text-gray-300');
+      });
+      const btn = document.getElementById(`mep-btn-${calc}`);
+      if (btn) {
+        btn.classList.remove('text-gray-300');
+        btn.classList.add('bg-blue-600', 'text-white');
+      }
+
+      ['bioclimatic', 'hydraulic', 'electrical', 'sadi', 'saci', 'cctv'].forEach(c => {
+        const el = document.getElementById(`mep-calc-${c}`);
+        if (el) el.classList.toggle('hidden', c !== calc);
+      });
     }
 
     function switchCalc(calc) {
@@ -538,6 +790,8 @@
       ctx.save();
       ctx.translate(panX, panY);
 
+      const showArch = document.getElementById('layer-arch') ? document.getElementById('layer-arch').checked : true;
+
       // Colors for room zones
       const zoneColors = {
         'PORCH': 'rgba(245, 158, 11, 0.15)',
@@ -550,100 +804,286 @@
         'CORRIDOR': 'rgba(203, 213, 225, 0.08)'
       };
 
-      // 1. Draw Spaces
-      projectState.spaces.forEach(s => {
-        if (!s.boundary || s.boundary.length < 3) return;
-        ctx.beginPath();
-        const start = toScreen(s.boundary[0][0], s.boundary[0][1]);
-        ctx.moveTo(start.x, start.y);
-        for (let i = 1; i < s.boundary.length; i++) {
-          const pt = toScreen(s.boundary[i][0], s.boundary[i][1]);
-          ctx.lineTo(pt.x, pt.y);
-        }
-        ctx.closePath();
-        ctx.fillStyle = zoneColors[s.type] || 'rgba(255, 255, 255, 0.05)';
-        ctx.fill();
+      if (showArch) {
+        // 1. Draw Spaces
+        projectState.spaces.forEach(s => {
+          if (!s.boundary || s.boundary.length < 3) return;
+          ctx.beginPath();
+          const start = toScreen(s.boundary[0][0], s.boundary[0][1]);
+          ctx.moveTo(start.x, start.y);
+          for (let i = 1; i < s.boundary.length; i++) {
+            const pt = toScreen(s.boundary[i][0], s.boundary[i][1]);
+            ctx.lineTo(pt.x, pt.y);
+          }
+          ctx.closePath();
+          ctx.fillStyle = zoneColors[s.type] || 'rgba(255, 255, 255, 0.05)';
+          ctx.fill();
 
-        // Label center
-        let cx = 0, cy = 0;
-        s.boundary.forEach(p => { cx += p[0]; cy += p[1]; });
-        cx /= s.boundary.length; cy /= s.boundary.length;
-        const screenCenter = toScreen(cx, cy);
+          // Label center
+          let cx = 0, cy = 0;
+          s.boundary.forEach(p => { cx += p[0]; cy += p[1]; });
+          cx /= s.boundary.length; cy /= s.boundary.length;
+          const screenCenter = toScreen(cx, cy);
 
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(s.name, screenCenter.x, screenCenter.y - 4);
-        ctx.fillStyle = '#60A5FA';
-        ctx.font = '10px monospace';
-        ctx.fillText(`${s.area_m2.toFixed(2)} m²`, screenCenter.x, screenCenter.y + 10);
-      });
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(s.name, screenCenter.x, screenCenter.y - 4);
+          ctx.fillStyle = '#60A5FA';
+          ctx.font = '10px monospace';
+          ctx.fillText(`${s.area_m2.toFixed(2)} m²`, screenCenter.x, screenCenter.y + 10);
+        });
 
-      // 2. Draw Walls
-      projectState.walls.forEach(w => {
-        const p1 = toScreen(w.start[0], w.start[1]);
-        const p2 = toScreen(w.end[0], w.end[1]);
+        // 2. Draw Walls
+        projectState.walls.forEach(w => {
+          const p1 = toScreen(w.start[0], w.start[1]);
+          const p2 = toScreen(w.end[0], w.end[1]);
 
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.lineWidth = Math.max(3, w.thickness_m * zoom);
-        ctx.strokeStyle = w.structural ? '#F8FAFC' : '#94A3B8';
-        ctx.lineCap = 'square';
-        ctx.stroke();
-      });
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.lineWidth = Math.max(3, w.thickness_m * zoom);
+          ctx.strokeStyle = w.structural ? '#F8FAFC' : '#94A3B8';
+          ctx.lineCap = 'square';
+          ctx.stroke();
+        });
 
-      // 3. Draw Doors
-      projectState.doors.forEach(d => {
-        const wall = projectState.walls.find(w => w.id === d.wall_id);
-        if (!wall) return;
-        const dx = wall.end[0] - wall.start[0];
-        const dy = wall.end[1] - wall.start[1];
-        const len = Math.hypot(dx, dy);
-        if (len < 0.1) return;
-        const ux = dx / len, uy = dy / len;
+        // 3. Draw Doors
+        projectState.doors.forEach(d => {
+          const wall = projectState.walls.find(w => w.id === d.wall_id);
+          if (!wall) return;
+          const dx = wall.end[0] - wall.start[0];
+          const dy = wall.end[1] - wall.start[1];
+          const len = Math.hypot(dx, dy);
+          if (len < 0.1) return;
+          const ux = dx / len, uy = dy / len;
 
-        const doorStartM = { x: wall.start[0] + ux * d.offset_m, y: wall.start[1] + uy * d.offset_m };
-        const pDoor = toScreen(doorStartM.x, doorStartM.y);
-        const doorPixelW = d.width_m * zoom;
+          const doorStartM = { x: wall.start[0] + ux * d.offset_m, y: wall.start[1] + uy * d.offset_m };
+          const pDoor = toScreen(doorStartM.x, doorStartM.y);
+          const doorPixelW = d.width_m * zoom;
 
-        // Swing Arc
-        ctx.beginPath();
-        ctx.arc(pDoor.x, pDoor.y, doorPixelW, 0, Math.PI / 2);
-        ctx.strokeStyle = '#38BDF8';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      });
+          // Swing Arc
+          ctx.beginPath();
+          ctx.arc(pDoor.x, pDoor.y, doorPixelW, 0, Math.PI / 2);
+          ctx.strokeStyle = '#38BDF8';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 3]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        });
 
-      // 4. Draw Windows
-      projectState.windows.forEach(win => {
-        const wall = projectState.walls.find(w => w.id === win.wall_id);
-        if (!wall) return;
-        const dx = wall.end[0] - wall.start[0];
-        const dy = wall.end[1] - wall.start[1];
-        const len = Math.hypot(dx, dy);
-        if (len < 0.1) return;
-        const ux = dx / len, uy = dy / len;
+        // 4. Draw Windows
+        projectState.windows.forEach(win => {
+          const wall = projectState.walls.find(w => w.id === win.wall_id);
+          if (!wall) return;
+          const dx = wall.end[0] - wall.start[0];
+          const dy = wall.end[1] - wall.start[1];
+          const len = Math.hypot(dx, dy);
+          if (len < 0.1) return;
+          const ux = dx / len, uy = dy / len;
 
-        const w1 = toScreen(wall.start[0] + ux * win.offset_m, wall.start[1] + uy * win.offset_m);
-        const w2 = toScreen(wall.start[0] + ux * (win.offset_m + win.width_m), wall.start[1] + uy * (win.offset_m + win.width_m));
+          const w1 = toScreen(wall.start[0] + ux * win.offset_m, wall.start[1] + uy * win.offset_m);
+          const w2 = toScreen(wall.start[0] + ux * (win.offset_m + win.width_m), wall.start[1] + uy * (win.offset_m + win.width_m));
 
-        ctx.beginPath();
-        ctx.moveTo(w1.x, w1.y);
-        ctx.lineTo(w2.x, w2.y);
-        ctx.lineWidth = Math.max(4, wall.thickness_m * zoom + 2);
-        ctx.strokeStyle = '#0284C7';
-        ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(w1.x, w1.y);
+          ctx.lineTo(w2.x, w2.y);
+          ctx.lineWidth = Math.max(4, wall.thickness_m * zoom + 2);
+          ctx.strokeStyle = '#0284C7';
+          ctx.stroke();
 
-        ctx.beginPath();
-        ctx.moveTo(w1.x, w1.y);
-        ctx.lineTo(w2.x, w2.y);
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = '#38BDF8';
-        ctx.stroke();
-      });
+          ctx.beginPath();
+          ctx.moveTo(w1.x, w1.y);
+          ctx.lineTo(w2.x, w2.y);
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#38BDF8';
+          ctx.stroke();
+        });
+      }
+
+      // 5. MEP Segments Rendering
+      if (projectState.mep_segments) {
+        projectState.mep_segments.forEach(seg => {
+          const sys = seg.system;
+          if (sys === 'POWER' && !document.getElementById('layer-elec')?.checked) return;
+          if (sys === 'COLD_WATER' && !document.getElementById('layer-water')?.checked) return;
+          if (sys === 'SANITARY_DRAINAGE' && !document.getElementById('layer-drain')?.checked) return;
+          if (sys === 'FIRE_ALARM' && !document.getElementById('layer-fire')?.checked) return;
+          if (sys === 'CCTV' && !document.getElementById('layer-cctv')?.checked) return;
+
+          const p1 = toScreen(seg.x1, seg.y1);
+          const p2 = toScreen(seg.x2, seg.y2);
+
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+
+          if (sys === 'POWER') {
+            ctx.strokeStyle = '#EAB308';
+            ctx.lineWidth = 2.0;
+            ctx.setLineDash([4, 3]);
+          } else if (sys === 'COLD_WATER') {
+            ctx.strokeStyle = '#38BDF8';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([]);
+          } else if (sys === 'SANITARY_DRAINAGE') {
+            ctx.strokeStyle = '#10B981';
+            ctx.lineWidth = 3.5;
+            ctx.setLineDash([]);
+          } else if (sys === 'FIRE_ALARM') {
+            ctx.strokeStyle = '#EF4444';
+            ctx.lineWidth = 1.8;
+            ctx.setLineDash([3, 2]);
+          } else if (sys === 'CCTV') {
+            ctx.strokeStyle = '#A855F7';
+            ctx.lineWidth = 2.0;
+            ctx.setLineDash([5, 3]);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+        });
+      }
+
+      // 6. MEP Nodes Rendering
+      if (projectState.mep_nodes) {
+        projectState.mep_nodes.forEach(nd => {
+          const sys = nd.system;
+          if (sys === 'POWER' && !document.getElementById('layer-elec')?.checked) return;
+          if (sys === 'COLD_WATER' && !document.getElementById('layer-water')?.checked) return;
+          if (sys === 'SANITARY_DRAINAGE' && !document.getElementById('layer-drain')?.checked) return;
+          if (sys === 'FIRE_ALARM' && !document.getElementById('layer-fire')?.checked) return;
+          if (sys === 'CCTV' && !document.getElementById('layer-cctv')?.checked) return;
+
+          const pt = toScreen(nd.x, nd.y);
+
+          if (sys === 'POWER') {
+            if (nd.kind === 'PANEL') {
+              ctx.fillStyle = '#CA8A04';
+              ctx.strokeStyle = '#FEF08A';
+              ctx.lineWidth = 2;
+              ctx.fillRect(pt.x - 7, pt.y - 7, 14, 14);
+              ctx.strokeRect(pt.x - 7, pt.y - 7, 14, 14);
+              ctx.fillStyle = '#FFFFFF';
+              ctx.font = 'bold 9px sans-serif';
+              ctx.fillText('⚡ Cuadro', pt.x, pt.y - 10);
+            } else if (nd.kind === 'LUMINAIRE') {
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+              ctx.fillStyle = '#FDE047';
+              ctx.fill();
+              ctx.strokeStyle = '#CA8A04';
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(pt.x - 4, pt.y); ctx.lineTo(pt.x + 4, pt.y);
+              ctx.moveTo(pt.x, pt.y - 4); ctx.lineTo(pt.x, pt.y + 4);
+              ctx.stroke();
+            }
+          } else if (sys === 'COLD_WATER') {
+            if (nd.kind === 'TANK') {
+              ctx.fillStyle = '#0284C7';
+              ctx.strokeStyle = '#BAE6FD';
+              ctx.lineWidth = 2;
+              ctx.fillRect(pt.x - 8, pt.y - 8, 16, 16);
+              ctx.strokeRect(pt.x - 8, pt.y - 8, 16, 16);
+              ctx.fillStyle = '#38BDF8';
+              ctx.font = 'bold 9px sans-serif';
+              ctx.fillText(nd.name.includes('Cisterna') ? '💧 Cisterna' : '💧 Tanque', pt.x, pt.y - 11);
+            } else if (nd.kind === 'PUMP') {
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+              ctx.fillStyle = '#0369A1';
+              ctx.fill();
+              ctx.strokeStyle = '#E0F2FE';
+              ctx.stroke();
+              ctx.fillStyle = '#FFFFFF';
+              ctx.font = 'bold 8px sans-serif';
+              ctx.fillText('M', pt.x, pt.y + 3);
+            } else {
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+              ctx.fillStyle = '#38BDF8';
+              ctx.fill();
+            }
+          } else if (sys === 'SANITARY_DRAINAGE') {
+            if (nd.kind === 'OUTFALL') {
+              ctx.fillStyle = '#047857';
+              ctx.strokeStyle = '#6EE7B7';
+              ctx.lineWidth = 2;
+              ctx.fillRect(pt.x - 9, pt.y - 7, 18, 14);
+              ctx.strokeRect(pt.x - 9, pt.y - 7, 18, 14);
+              ctx.fillStyle = '#10B981';
+              ctx.font = 'bold 9px sans-serif';
+              ctx.fillText('🚽 Fosa Séptica', pt.x, pt.y - 10);
+            } else {
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+              ctx.fillStyle = '#10B981';
+              ctx.fill();
+              ctx.strokeStyle = '#065F46';
+              ctx.stroke();
+            }
+          } else if (sys === 'FIRE_ALARM') {
+            if (nd.kind === 'FIRE_PANEL') {
+              ctx.fillStyle = '#B91C1C';
+              ctx.strokeStyle = '#FCA5A5';
+              ctx.lineWidth = 2;
+              ctx.fillRect(pt.x - 7, pt.y - 7, 14, 14);
+              ctx.strokeRect(pt.x - 7, pt.y - 7, 14, 14);
+              ctx.fillStyle = '#EF4444';
+              ctx.font = 'bold 9px sans-serif';
+              ctx.fillText('🚨 SADI', pt.x, pt.y - 10);
+            } else if (nd.kind === 'SMOKE_DETECTOR') {
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 25, 0, Math.PI * 2);
+              ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+              ctx.fill();
+              ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)';
+              ctx.setLineDash([2, 2]);
+              ctx.stroke();
+              ctx.setLineDash([]);
+
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+              ctx.fillStyle = '#EF4444';
+              ctx.fill();
+            } else if (nd.kind === 'HEAT_DETECTOR') {
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+              ctx.fillStyle = '#F97316';
+              ctx.fill();
+            } else {
+              ctx.fillStyle = '#DC2626';
+              ctx.fillRect(pt.x - 4, pt.y - 4, 8, 8);
+            }
+          } else if (sys === 'CCTV') {
+            if (nd.kind === 'CAMERA') {
+              ctx.beginPath();
+              ctx.moveTo(pt.x, pt.y);
+              ctx.arc(pt.x, pt.y, 28, Math.PI * 0.1, Math.PI * 0.45);
+              ctx.closePath();
+              ctx.fillStyle = 'rgba(168, 85, 247, 0.18)';
+              ctx.fill();
+              ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+              ctx.stroke();
+
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+              ctx.fillStyle = '#A855F7';
+              ctx.fill();
+              ctx.strokeStyle = '#FFFFFF';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            } else {
+              ctx.fillStyle = '#7E22CE';
+              ctx.fillRect(pt.x - 6, pt.y - 6, 12, 12);
+              ctx.fillStyle = '#C084FC';
+              ctx.font = 'bold 8px sans-serif';
+              ctx.fillText('NVR', pt.x, pt.y - 8);
+            }
+          }
+        });
+      }
 
       ctx.restore();
     }
@@ -794,14 +1234,25 @@
       const template = document.getElementById('gen-template').value;
       const width = parseFloat(document.getElementById('gen-width').value);
       const depth = parseFloat(document.getElementById('gen-depth').value);
+      const include_mep = document.getElementById('gen-include-mep') ? document.getElementById('gen-include-mep').checked : true;
 
       try {
         const res = await fetch('/api/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ template, width, depth })
+          body: JSON.stringify({ template, width, depth, include_mep })
         });
         const result = await res.json();
+        if (result.bioclimatic) {
+          const b = result.bioclimatic;
+          document.getElementById('gen-bio-compliance').innerText = b.compliance_lighting_nc.includes('CUMPLE') ? 'CUMPLE NC' : 'DEFICIENTE';
+          document.getElementById('gen-bio-details').innerText = `${b.building_orientation}. Alero: ${b.eaves_depth_recommended_m}m. Vent: ${b.cross_ventilation_status}.`;
+        }
+        if (result.summary && result.summary.mep_networks) {
+          const m = result.summary.mep_networks;
+          document.getElementById('gen-mep-count').innerText = `${m.networks_created ? m.networks_created.length : 5} Redes`;
+          document.getElementById('gen-mep-details').innerText = `${m.electrical_nodes} nodos elec, ${m.hydraulic_nodes} hidr, ${m.sadi_devices} SADI, ${m.cctv_cameras} CCTV.`;
+        }
         await loadProjectState();
         switchTab('2d');
       } catch (e) {
@@ -1007,6 +1458,215 @@
               <div>Peso sísmico edificación W: <strong class="font-mono">${data.building_weight_kn} kN</strong></div>
               <div class="mt-2 text-white font-bold text-sm">Cortante Basal V: <span class="text-red-400 font-mono">${data.base_shear_kn} kN</span></div>
             </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // -- MEP & Security Calculators ---------------------------------------------
+    async function calculateBioclimatic() {
+      const width = parseFloat(document.getElementById('mep-bio-w').value);
+      const depth = parseFloat(document.getElementById('mep-bio-d').value);
+      const orientation = document.getElementById('mep-bio-orient').value;
+
+      const res = await fetch('/api/mep/bioclimatic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ width, depth, orientation })
+      });
+      const data = await res.json();
+      const div = document.getElementById('mep-bio-results');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-3 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">${data.building_orientation}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${data.compliance_lighting_nc.includes('CUMPLE') ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}">${data.compliance_lighting_nc}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-3 text-gray-300">
+            <div>Área Construida: <strong class="font-mono text-white">${data.total_floor_area_m2} m²</strong></div>
+            <div>Área Ventanas: <strong class="font-mono text-white">${data.total_window_area_m2} m²</strong></div>
+            <div>Alero Recomendado: <strong class="font-mono text-emerald-400">${data.eaves_depth_recommended_m} m</strong></div>
+            <div>Ratio Ventana/Piso: <strong class="font-mono text-blue-400">${data.window_to_floor_ratio_pct}%</strong></div>
+            <div>Ratio Ventilación: <strong class="font-mono text-blue-400">${data.ventilation_opening_ratio_pct}%</strong></div>
+            <div>Ventilación Cruzada: <strong class="text-emerald-400">${data.cross_ventilation_status}</strong></div>
+          </div>
+          <div class="text-[11px] text-gray-400 border-t border-dark-border pt-2">
+            <div class="font-bold text-gray-300 mb-1">Estrategias Pasivas para Clima Tropical Cubano:</div>
+            <ul class="list-disc pl-4 space-y-1">
+              ${data.recommended_passive_strategies.map(s => `<li>${s}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      `;
+    }
+
+    async function calculateHydraulic() {
+      const occupants = parseInt(document.getElementById('mep-hyd-occ').value);
+      const autonomy_days = parseFloat(document.getElementById('mep-hyd-aut').value);
+
+      const res = await fetch('/api/mep/hydraulic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ occupants, autonomy_days })
+      });
+      const data = await res.json();
+      const div = document.getElementById('mep-hyd-results');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-3 text-xs">
+          <div class="font-bold text-white text-sm">Abastecimiento y Residuales (${data.num_occupants} habitantes @ 200 L/hab/d)</div>
+          <div class="grid grid-cols-2 gap-4 text-gray-300">
+            <div class="space-y-1.5 p-3 bg-dark-hover/40 rounded-lg">
+              <div class="text-blue-400 font-bold mb-1">Red de Agua Potable</div>
+              <div>Consumo diario total: <strong class="font-mono text-white">${data.daily_demand_liters} L/día</strong></div>
+              <div>Reserva Cisterna (${autonomy_days} días): <strong class="font-mono text-emerald-400">${data.cistern_volume_m3} m³</strong></div>
+              <div>Tanque Elevado: <strong class="font-mono text-white">${(data.elevated_tank_volume_m3*1000).toFixed(0)} L</strong></div>
+              <div>Bomba de Elevación: <strong class="font-mono text-amber-400">${data.pump_power_hp} HP</strong> (llenado 1.5 h)</div>
+              <div>Hunter Fixture Units: <strong class="font-mono">${data.total_fixture_units_hunter} UG</strong> (Qpico=${data.peak_flow_ls} L/s)</div>
+              <div>Tubería Alimentación: <strong class="font-mono text-blue-300">${data.main_supply_pipe_dn}</strong></div>
+            </div>
+            <div class="space-y-1.5 p-3 bg-dark-hover/40 rounded-lg">
+              <div class="text-emerald-400 font-bold mb-1">Evacuación y Tratamiento Residual</div>
+              <div>Fosa Séptica Útil: <strong class="font-mono text-emerald-400">${data.septic_tank_volume_m3} m³</strong></div>
+              <div>Dimensiones sugeridas: <strong class="font-mono text-white">2.50 x 1.20 x 1.50 m</strong></div>
+              <div>Colector Sanitario Ppal: <strong class="font-mono text-blue-300">${data.drainage_main_pipe_dn}</strong></div>
+              <div>Aparatos instalados: <span class="text-gray-400">${data.fixtures_summary.Inodoros} Inodoros, ${data.fixtures_summary.Lavamanos} Lavamanos, ${data.fixtures_summary.Duchas} Duchas, ${data.fixtures_summary.Fregaderos} Fregaderos</span></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function calculateElectrical() {
+      const ac_units = document.getElementById('mep-elec-ac').checked ? 2 : 0;
+      const water_heater = document.getElementById('mep-elec-heater').checked;
+
+      const res = await fetch('/api/mep/electrical', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ac_units, water_heater })
+      });
+      const data = await res.json();
+      const div = document.getElementById('mep-elec-results');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-3 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">${data.main_voltage_v}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300">ΔV = ${data.voltage_drop_max_pct}% (CUMPLE &le; 3%)</span>
+          </div>
+          <div class="grid grid-cols-4 gap-3 text-gray-300">
+            <div>Carga Conectada: <strong class="font-mono text-white">${data.total_connected_load_w} W</strong></div>
+            <div>Carga Demanda: <strong class="font-mono text-emerald-400">${data.max_demand_load_w} W</strong></div>
+            <div>Corriente de Servicio: <strong class="font-mono text-blue-400">${data.main_current_a} A</strong></div>
+            <div>Interruptor Ppal: <strong class="font-mono text-amber-400">${data.main_breaker_a} A (2P)</strong></div>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-gray-300 mb-1">Cuadro de Circuitos Ramales:</div>
+            <table class="w-full text-[11px] text-left border border-dark-border">
+              <thead class="bg-dark-hover text-gray-400">
+                <tr><th class="p-1.5">Cto</th><th class="p-1.5">Destino</th><th class="p-1.5">Carga</th><th class="p-1.5">Tensión</th><th class="p-1.5">Breaker</th><th class="p-1.5">Conductor</th><th class="p-1.5">ΔV</th></tr>
+              </thead>
+              <tbody class="divide-y divide-dark-border">
+                ${data.circuits_detail.map(c => `
+                  <tr>
+                    <td class="p-1.5 font-mono text-blue-400 font-bold">${c.id}</td>
+                    <td class="p-1.5 text-white">${c.name}</td>
+                    <td class="p-1.5 font-mono">${c.load_w} W</td>
+                    <td class="p-1.5 font-mono">${c.voltage} V</td>
+                    <td class="p-1.5 font-mono text-amber-400">${c.breaker}</td>
+                    <td class="p-1.5 font-mono text-gray-300">${c.wire}</td>
+                    <td class="p-1.5 font-mono text-emerald-400">${c.drop_pct}%</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    async function calculateSadi() {
+      const area = parseFloat(document.getElementById('mep-sadi-area').value);
+      const res = await fetch('/api/mep/sadi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ area })
+      });
+      const data = await res.json();
+      const div = document.getElementById('mep-sadi-results');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-3 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">Detección de Incendios SADI — NC 96 / NFPA 72</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300">${data.sadi_status}</span>
+          </div>
+          <div class="grid grid-cols-4 gap-3 text-gray-300">
+            <div>Detectores Ópticos Humo: <strong class="font-mono text-rose-400">${data.smoke_detectors_count} uds</strong></div>
+            <div>Detectores Térmicos Cocina: <strong class="font-mono text-orange-400">${data.thermal_detectors_count} uds</strong></div>
+            <div>Pulsadores Manuales: <strong class="font-mono text-white">${data.manual_call_points} uds</strong></div>
+            <div>Sirenas con Flash: <strong class="font-mono text-white">${data.alarm_sounders_strobe} uds</strong></div>
+          </div>
+          <div class="p-2.5 bg-dark-hover/40 rounded-lg text-gray-300 flex justify-between">
+            <div>Consumo Reposo: <strong class="font-mono text-white">${data.loop_current_standby_ma} mA</strong></div>
+            <div>Batería Autonomía (24h reposo + 30m alarma): <strong class="font-mono text-amber-400">${data.battery_capacity_ah} Ah (12V)</strong></div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function calculateSaci() {
+      const area = parseFloat(document.getElementById('mep-saci-area').value);
+      const hazard = document.getElementById('mep-saci-risk').value;
+
+      const res = await fetch('/api/mep/saci', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ area, hazard })
+      });
+      const data = await res.json();
+      const div = document.getElementById('mep-saci-results');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-3 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">Protección Manual SACI — NC 96 / NFPA 10</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300">${data.saci_status}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-3 text-gray-300">
+            <div>Extintores PQS ABC 6kg: <strong class="font-mono text-rose-400">${data.extinguishers_pqs_6kg} uds</strong></div>
+            <div>Extintores CO2 5kg (Panel): <strong class="font-mono text-amber-400">${data.extinguishers_co2_5kg} uds</strong></div>
+            <div>Distancia Máx. Recorrido: <strong class="font-mono text-white">&le; ${data.max_travel_distance_m} m</strong></div>
+            <div>Gabinetes BIE (45mm): <strong class="font-mono text-white">${data.hose_cabinets_bie_count} uds</strong></div>
+            <div>Reserva Agua Incendio: <strong class="font-mono text-blue-400">${data.fire_water_reserve_m3} m³</strong></div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function calculateCctv() {
+      const portal = document.getElementById('mep-cctv-portal').checked;
+      const patio = document.getElementById('mep-cctv-patio').checked;
+
+      const res = await fetch('/api/mep/cctv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ portal, patio })
+      });
+      const data = await res.json();
+      const div = document.getElementById('mep-cctv-results');
+      div.innerHTML = `
+        <div class="p-4 bg-dark-base border border-dark-border rounded-lg space-y-3 text-xs">
+          <div class="font-bold text-white text-sm">Sistema de Circuito Cerrado (CCTV IP 4MP H.265)</div>
+          <div class="grid grid-cols-3 gap-3 text-gray-300">
+            <div>Total Cámaras: <strong class="font-mono text-purple-400">${data.cameras_count} uds</strong></div>
+            <div>Ancho de Banda Total: <strong class="font-mono text-blue-400">${data.total_bandwidth_mbps} Mbps</strong></div>
+            <div>Almacenamiento 30 días NVR: <strong class="font-mono text-emerald-400">${data.storage_30days_tb} TB</strong></div>
+            <div>Switch PoE Requerido: <strong class="font-mono text-white">${data.switch_poe_ports} puertos (${data.switch_poe_budget_w} W)</strong></div>
+            <div>Cable UTP Cat 6 Estimado: <strong class="font-mono text-amber-400">${data.cable_utp_cat6_meters} m</strong></div>
+          </div>
+          <div class="text-gray-400 border-t border-dark-border pt-2">
+            <div class="font-bold text-gray-300 mb-1">Cámaras Desplegadas:</div>
+            <ul class="list-disc pl-4 space-y-0.5">
+              ${data.camera_locations.map(loc => `<li>${loc}</li>`).join('')}
+            </ul>
           </div>
         </div>
       `;

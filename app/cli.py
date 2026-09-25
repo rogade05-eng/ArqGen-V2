@@ -672,8 +672,40 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Tipología arquitectónica")
     p.add_argument("--width", type=float, default=None, help="Ancho de la planta (m)")
     p.add_argument("--depth", type=float, default=None, help="Profundidad de la planta (m)")
+    p.add_argument("--no-mep", action="store_true", help="Desactivar generación automática de redes MEP y Seguridad")
     p.add_argument("--dxf", default="", help="Ruta opcional para exportar DXF")
     p.add_argument("--ifc", default="", help="Ruta opcional para exportar IFC")
+
+    # -- MEP, Bioclimático y Seguridad Integral -------------------------------------------------------------
+    p_mep = sub.add_parser("mep", help="Instalaciones MEP, Bioclimático y Seguridad Integral (Normas Cubanas)")
+    psub_mep = p_mep.add_subparsers(dest="subcommand", required=True)
+
+    pm_b = psub_mep.add_parser("bioclimatic", help="Análisis bioclimático y confort pasivo en clima tropical")
+    pm_b.add_argument("--ancho", type=float, default=9.50, help="Ancho de fachada (m)")
+    pm_b.add_argument("--fondo", type=float, default=8.50, help="Profundidad (m)")
+    pm_b.add_argument("--orientacion", choices=["SUR", "NORTE", "ESTE", "OESTE", "SURESTE", "NORESTE", "SUROESTE", "NOROESTE"], default="SUR")
+
+    pm_h = psub_mep.add_parser("hydraulic", help="Dimensionamiento hidráulico, cisterna, bomba y fosa séptica")
+    pm_h.add_argument("--habitantes", type=int, default=4, help="Número de ocupantes")
+    pm_h.add_argument("--dotacion", type=float, default=200.0, help="Dotación L/hab/día (NC: 200)")
+    pm_h.add_argument("--dias", type=float, default=2.5, help="Días de reserva de cisterna")
+
+    pm_e = psub_mep.add_parser("electrical", help="Cuadro general 120/240V, circuitos C1-C5 y caída de tensión")
+    pm_e.add_argument("--area", type=float, default=80.0, help="Área construida (m²)")
+    pm_e.add_argument("--ac-units", type=int, default=2, help="Número de equipos de climatización")
+    pm_e.add_argument("--longitud-acometida", type=float, default=15.0, help="Longitud de acometida (m)")
+
+    pm_sadi = psub_mep.add_parser("sadi", help="Sistema Automático de Detección de Incendios (NC 96 / NFPA 72)")
+    pm_sadi.add_argument("--area", type=float, default=80.0, help="Área total (m²)")
+    pm_sadi.add_argument("--dormitorios", type=int, default=2, help="Cantidad de dormitorios")
+
+    pm_saci = psub_mep.add_parser("saci", help="Protección y Extinción Contra Incendios (NC 96 / NFPA 10)")
+    pm_saci.add_argument("--area", type=float, default=80.0, help="Área total (m²)")
+    pm_saci.add_argument("--riesgo", choices=["LEVE", "ORDINARIO", "ALTO"], default="LEVE")
+
+    pm_cctv = psub_mep.add_parser("cctv", help="Seguridad Electrónica CCTV y Grabación NVR")
+    pm_cctv.add_argument("--camaras", type=int, default=4, help="Número de cámaras IP")
+    pm_cctv.add_argument("--dias", type=int, default=30, help="Días de grabación continua")
     p = sub.add_parser("selftest", help="Verificación integral interna")
     from app.cli_fases import add_parsers as add_v13_parsers
     add_v13_parsers(sub)
@@ -2023,6 +2055,125 @@ def cmd_struct_nc_sismo(application, args) -> int:
     return 0
 
 
+# -- MEP and Security Cuban Norms commands ---------------------------------------------
+def cmd_mep_bioclimatic(application, args) -> int:
+    from engines.mep_security_engine import analyze_bioclimatic
+    spaces = [
+        {"name": "Sala-Comedor", "area_m2": args.ancho * args.fondo * 0.45},
+        {"name": "Dormitorios", "area_m2": args.ancho * args.fondo * 0.35},
+        {"name": "Servicios", "area_m2": args.ancho * args.fondo * 0.20},
+    ]
+    wins = [
+        {"width_m": 1.40, "height_m": 1.20},
+        {"width_m": 1.40, "height_m": 1.20},
+        {"width_m": 1.20, "height_m": 1.20},
+        {"width_m": 1.00, "height_m": 1.00},
+    ]
+    res = analyze_bioclimatic(spaces, wins, args.ancho, args.fondo, orientation=args.orientacion)
+    print("=" * 65)
+    print("ANÁLISIS BIOCLIMÁTICO Y ESTRATEGIAS PASIVAS — CUBA TROPICAL")
+    print("=" * 65)
+    print(f"Orientación Fachada: {res.building_orientation} | Radiación Solar: {res.solar_exposure}")
+    print(f"Área Construida:     {res.total_floor_area_m2:.2f} m² | Área Ventanas: {res.total_window_area_m2:.2f} m²")
+    print(f"Ratio Ventana/Piso:  {res.window_to_floor_ratio_pct:.1f}% ({res.compliance_lighting_nc})")
+    print(f"Ratio Ventilación:   {res.ventilation_opening_ratio_pct:.1f}% ({res.compliance_ventilation_nc})")
+    print(f"Ventilación Cruzada: {res.cross_ventilation_status}")
+    print(f"Alero Recomendado:   {res.eaves_depth_recommended_m:.2f} m")
+    print("-" * 65)
+    print("Recomendaciones Pasivas:")
+    for idx, strat in enumerate(res.recommended_passive_strategies, 1):
+        print(f"  {idx}. {strat}")
+    return 0
+
+
+def cmd_mep_hydraulic(application, args) -> int:
+    from engines.mep_security_engine import calculate_hydraulic_plumbing
+    res = calculate_hydraulic_plumbing(num_occupants=args.habitantes, reserve_days=args.dias)
+    print("=" * 65)
+    print("DIMENSIONAMIENTO HIDRÁULICO Y SANITARIO — NORMAS CUBANAS")
+    print("=" * 65)
+    print(f"Ocupación:           {res.num_occupants} habitantes @ 200 L/hab/día (NC)")
+    print(f"Consumo Diario:      {res.daily_demand_liters:.0f} L/día ({res.daily_demand_liters/1000:.2f} m³/día)")
+    print(f"Reserva Cisterna:    {res.cistern_volume_m3:.2f} m³ ({args.dias:.1f} días de autonomía)")
+    print(f"Tanque Elevado:      {res.elevated_tank_volume_m3*1000:.0f} L ({res.elevated_tank_volume_m3:.2f} m³)")
+    print(f"Bomba Recomendada:   {res.pump_power_hp} HP (Llenado rápido 1.5 horas)")
+    print(f"Hunter Fixture Units:{res.total_fixture_units_hunter} UG | Caudal pico: {res.peak_flow_ls:.2f} L/s")
+    print(f"Diámetro Acometida:  {res.main_supply_pipe_dn} | Colector Sanitario: {res.drainage_main_pipe_dn}")
+    print(f"Fosa Séptica Útil:   {res.septic_tank_volume_m3:.2f} m³ (Digestión + Lodos 1 año)")
+    return 0
+
+
+def cmd_mep_electrical(application, args) -> int:
+    from engines.mep_security_engine import calculate_electrical_panel
+    res = calculate_electrical_panel(has_ac=args.ac_units > 0)
+    print("=" * 65)
+    print("CUADRO ELÉCTRICO GENERAL Y CIRCUITOS 120/240V 60Hz")
+    print("=" * 65)
+    print(f"Tensión Suministro:  {res.main_voltage_v}")
+    print(f"Carga Conectada:     {res.total_connected_load_w:.0f} W | Coeficiente Simultaneidad: {res.demand_factor*100:.0f}%")
+    print(f"Carga de Demanda:    {res.max_demand_load_w:.0f} W ({res.max_demand_load_w/1000:.2f} kW)")
+    print(f"Corriente Servicio:  {res.main_current_a:.1f} A -> Interruptor Ppal: {res.main_breaker_a} A 2 Polos")
+    print(f"Caída de Tensión:    {res.voltage_drop_max_pct:.2f}% (CUMPLE <= 3% Norma)")
+    print(f"Electrodo Puesta Tierra: {res.grounding_electrode}")
+    print("-" * 65)
+    print("Cuadro de Circuitos Ramales:")
+    table_circuits = []
+    for c in res.circuits_detail:
+        table_circuits.append([c["id"], c["name"], f"{c['load_w']} W", f"{c['voltage']} V", c["breaker"], c["wire"], f"{c['drop_pct']:.1f}%"])
+    _print_table(table_circuits, ["Circuito", "Destino", "Carga", "Voltaje", "Breaker", "Conductor", "Caída ΔV"])
+    return 0
+
+
+def cmd_mep_sadi(application, args) -> int:
+    from engines.mep_security_engine import calculate_sadi_saci
+    res = calculate_sadi_saci(building_area_m2=args.area)
+    print("=" * 65)
+    print("SISTEMA AUTOMÁTICO DE DETECCIÓN DE INCENDIOS (SADI) — NC 96 / NFPA 72")
+    print("=" * 65)
+    print(f"Superficie Edificio: {args.area:.1f} m²")
+    print(f"Detectores Ópticos:  {res.smoke_detectors_count} uds (Humo fotoeléctrico, radio 7.5 m)")
+    print(f"Detectores Térmicos: {res.thermal_detectors_count} uds (Cocina / temperatura fija 57°C)")
+    print(f"Pulsadores Manuales: {res.manual_call_points} uds (Acceso / salida)")
+    print(f"Sirenas con Estrobo: {res.alarm_sounders_strobe} uds (Alarma óptica-acústica 85 dB)")
+    print(f"Consumo Lazo Reposo: {res.loop_current_standby_ma:.2f} mA")
+    print(f"Batería de Respaldo: {res.battery_capacity_ah:.1f} Ah a 12V (24h reposo + 30 min alarma)")
+    print(f"ESTADO NORMATIVO:    {res.sadi_status}")
+    return 0
+
+
+def cmd_mep_saci(application, args) -> int:
+    from engines.mep_security_engine import calculate_sadi_saci
+    res = calculate_sadi_saci(building_area_m2=args.area, occupancy_risk=args.riesgo)
+    print("=" * 65)
+    print("SISTEMA CONTRA INCENDIOS SACI — NORMAS CUBANAS NC 96 / NFPA 10")
+    print("=" * 65)
+    print(f"Superficie:          {args.area:.1f} m² | Clasificación Riesgo: {args.riesgo}")
+    print(f"Extintores PQS ABC:  {res.extinguishers_pqs_6kg} uds (6 kg Polvo Químico Seco, Distancia máx <= {res.max_travel_distance_m:.0f} m)")
+    print(f"Extintores CO2:      {res.extinguishers_co2_5kg} uds (5 kg Dióxido de Carbono para Cuadro Eléctrico)")
+    print(f"Gabinetes BIE (45mm):{res.hose_cabinets_bie_count} uds")
+    print(f"Reserva Agua Fuego:  {res.fire_water_reserve_m3:.1f} m³")
+    print(f"ESTADO NORMATIVO:    {res.saci_status}")
+    return 0
+
+
+def cmd_mep_cctv(application, args) -> int:
+    from engines.mep_security_engine import calculate_cctv_system
+    res = calculate_cctv_system()
+    print("=" * 65)
+    print("SEGURIDAD ELECTRÓNICA CCTV Y NVR — ESPECIFICACIONES TÉCNICAS")
+    print("=" * 65)
+    print(f"Cámaras IP:          {res.cameras_count} uds (Resolución 4MP, H.265)")
+    print(f"Ubicaciones:")
+    for loc in res.camera_locations:
+        print(f"  • {loc}")
+    print("-" * 65)
+    print(f"Ancho de Banda Red:  {res.total_bandwidth_mbps:.1f} Mbps")
+    print(f"Almacenamiento 30d:  {res.storage_30days_tb:.2f} TB (Grabación continua 24/7 en NVR)")
+    print(f"Switch PoE:          {res.switch_poe_ports} puertos PoE (Consumo: {res.switch_poe_budget_w:.1f} W)")
+    print(f"Cable UTP Cat 6:     {res.cable_utp_cat6_meters:.1f} metros lineales estimados")
+    return 0
+
+
 # -- security commands (spec 37-49) ---------------------------------------------------
 def _security_service(context):
     from services.security_service import SecurityService
@@ -2597,7 +2748,8 @@ def cmd_generate(application, args) -> int:
     result = gen.generate(
         template_key=args.template,
         width=args.width,
-        depth=args.depth
+        depth=args.depth,
+        include_mep=not getattr(args, "no_mep", False)
     )
     print("=" * 65)
     print(f"GENERADOR DE ARQUITECTURA SIN IA V2 — {result['title']}")
@@ -2606,6 +2758,15 @@ def cmd_generate(application, args) -> int:
     print(f"Superficie Útil: {result['summary']['total_built_area_m2']:.2f} m² | Muros: {result['summary']['wall_volume_m3']:.2f} m³")
     print(f"Elementos: {result['summary']['spaces']} locales, {result['summary']['walls']} muros, "
           f"{result['summary']['doors']} puertas, {result['summary']['windows']} ventanas")
+    if "mep_networks" in result["summary"] and result["summary"]["mep_networks"]:
+        mep = result["summary"]["mep_networks"]
+        print(f"Instalaciones MEP: {mep.get('electrical_nodes', 0)} nodos eléctricos, "
+              f"{mep.get('hydraulic_nodes', 0)} hidráulicos, {mep.get('sadi_devices', 0)} disp. SADI, "
+              f"{mep.get('cctv_cameras', 0)} cámaras CCTV")
+    if "bioclimatic" in result:
+        b = result["bioclimatic"]
+        print(f"Bioclimático: Orientación {b.get('building_orientation')} | "
+              f"Iluminación: {b.get('compliance_lighting_nc')} | Ventilación: {b.get('compliance_ventilation_nc')}")
     print("\nLocales Generados:")
     _print_table([[s["code"], s["name"], f"{s['area_m2']:.2f} m²"] for s in result["spaces"]],
                  ["Código", "Nombre", "Área"])
@@ -2705,6 +2866,12 @@ HANDLERS = {
     ("struct", "nc-columna"): cmd_struct_nc_columna,
     ("struct", "nc-viento"): cmd_struct_nc_viento,
     ("struct", "nc-sismo"): cmd_struct_nc_sismo,
+    ("mep", "bioclimatic"): cmd_mep_bioclimatic,
+    ("mep", "hydraulic"): cmd_mep_hydraulic,
+    ("mep", "electrical"): cmd_mep_electrical,
+    ("mep", "sadi"): cmd_mep_sadi,
+    ("mep", "saci"): cmd_mep_saci,
+    ("mep", "cctv"): cmd_mep_cctv,
     ("sec", "net"): cmd_sec_net,
     ("sec", "device-add"): cmd_sec_device_add,
     ("sec", "coverage"): cmd_sec_coverage,

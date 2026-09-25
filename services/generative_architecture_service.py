@@ -95,7 +95,8 @@ class GenerativeArchitectureService:
                  depth: Optional[float] = None,
                  wall_thickness_ext: float = 0.20,
                  wall_thickness_int: float = 0.15,
-                 story_height: float = 2.80) -> Dict[str, Any]:
+                 story_height: float = 2.80,
+                 include_mep: bool = True) -> Dict[str, Any]:
         """Genera un proyecto arquitectónico completo según el programa seleccionado."""
         if template_key not in PROGRAM_TEMPLATES:
             raise ValueError(f"Plantilla desconocida '{template_key}'. Opciones: {list(PROGRAM_TEMPLATES.keys())}")
@@ -155,7 +156,6 @@ class GenerativeArchitectureService:
         created_doors = []
         created_windows = []
 
-        # Puerta de entrada principal en el primer muro exterior horizontal del frente
         front_walls = [w for w in created_walls if (w.start[1] == 0 and w.end[1] == 0) or (w.start[0] == 0 and w.end[0] == 0)]
         main_wall = front_walls[0] if front_walls else created_walls[0]
         wall_len = math.hypot(main_wall.end[0] - main_wall.start[0], main_wall.end[1] - main_wall.start[1])
@@ -170,7 +170,6 @@ class GenerativeArchitectureService:
         )
         created_doors.append(door_main)
 
-        # Ventanas en muros exteriores
         ext_walls = [w for w in created_walls if w.id != main_wall.id]
         for w in ext_walls:
             w_len = math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1])
@@ -193,7 +192,6 @@ class GenerativeArchitectureService:
                 )
                 created_windows.append(win)
 
-        # Puertas interiores en muros divisorios
         int_walls = [w for w in created_walls if w not in ext_walls or not (
             (w.start[0] == 0 and w.end[0] == 0) or
             (abs(w.start[0] - W) < 0.05 and abs(w.end[0] - W) < 0.05) or
@@ -214,6 +212,11 @@ class GenerativeArchitectureService:
                 )
                 created_doors.append(d)
 
+        # 6. Generación de Instalaciones MEP & Seguridad (si include_mep = True)
+        mep_summary = {}
+        if include_mep:
+            mep_summary = self._generate_mep_networks(created_spaces, level, W, D)
+
         self.ctx.commit()
 
         # Recalcular cómputo QTO
@@ -229,6 +232,12 @@ class GenerativeArchitectureService:
         totals = qto_service.totals_by_formula()
         wall_volume = totals.get("WALL_VOLUME", 0.0)
 
+        # Análisis Bioclimático
+        from engines.mep_security_engine import analyze_bioclimatic
+        spaces_dict = [{"name": s.name, "area_m2": _calc_area(s.boundary)} for s in created_spaces]
+        wins_dict = [{"width_m": w.width_m, "height_m": w.height_m} for w in created_windows]
+        bio_report = analyze_bioclimatic(spaces_dict, wins_dict, W, D)
+
         return {
             "template": template_key,
             "title": template["title"],
@@ -240,8 +249,87 @@ class GenerativeArchitectureService:
                 "windows": len(created_windows),
                 "total_built_area_m2": round(total_area, 2),
                 "wall_volume_m3": round(wall_volume, 2),
+                "mep_networks": mep_summary,
             },
+            "bioclimatic": bio_report.__dict__,
             "spaces": [{"code": s.code, "name": s.name, "area_m2": round(_calc_area(s.boundary), 2)} for s in created_spaces],
+        }
+
+    def _generate_mep_networks(self, spaces: List[Any], level: Any, W: float, D: float) -> Dict[str, Any]:
+        """Genera redes coordinadas de Electricidad, Fontanería, Drenaje, SADI y CCTV."""
+        from services.installations_service import InstallationsService
+        from services.security_service import SecurityService
+
+        inst = InstallationsService(self.ctx)
+        sec = SecurityService(self.ctx)
+
+        # Helper centroide de polígono
+        def centroid(pts):
+            cx = sum(p[0] for p in pts) / len(pts)
+            cy = sum(p[1] for p in pts) / len(pts)
+            return round(cx, 2), round(cy, 2)
+
+        # --- A. RED ELÉCTRICA (POWER) ---
+        net_elec = inst.create_network("Red Eléctrica e Iluminación", "POWER")
+        panel_node = inst.add_node(net_elec.code, "PANEL", 0.40, 0.40, name="Cuadro General 120/240V", level_ref=level.code)
+        prev_node = panel_node
+        elec_nodes_count = 1
+        for s in spaces:
+            cx, cy = centroid(s.boundary)
+            lum = inst.add_node(net_elec.code, "LUMINAIRE", cx, cy, name=f"Luz {s.name}", level_ref=level.code, space_ref=s.code)
+            inst.connect(net_elec.code, prev_node.code, lum.code, kind="CONDUIT", name=f"Alim. Luz {s.name}")
+            prev_node = lum
+            elec_nodes_count += 1
+
+        # --- B. RED HIDRÁULICA AGUA FRÍA (COLD_WATER) ---
+        net_water = inst.create_network("Red de Agua Potable", "COLD_WATER")
+        cisterna = inst.add_node(net_water.code, "TANK", 0.50, round(D + 0.8, 2), name="Cisterna Subterránea 2.0 m³", level_ref=level.code)
+        bomba = inst.add_node(net_water.code, "PUMP", 0.50, round(D + 0.3, 2), name="Bomba Elevación 0.5 HP", level_ref=level.code)
+        tanque_elev = inst.add_node(net_water.code, "TANK", round(W * 0.4, 2), round(D * 0.6, 2), name="Tanque Elevado 800 L", level_ref=level.code, elevation_m=3.5)
+        inst.connect(net_water.code, cisterna.code, bomba.code, kind="PIPE", name="Succión Bomba", diameter_mm=25.0)
+        inst.connect(net_water.code, bomba.code, tanque_elev.code, kind="PIPE", name="Impulsión Tanque", diameter_mm=20.0)
+
+        # Puntos de consumo húmedos
+        for s in spaces:
+            if any(k in s.name.upper() for k in ["BAÑO", "COCINA", "PATIO"]):
+                cx, cy = centroid(s.boundary)
+                fix = inst.add_node(net_water.code, "FIXTURE", cx, cy, name=f"Aparatos {s.name}", level_ref=level.code, space_ref=s.code)
+                inst.connect(net_water.code, tanque_elev.code, fix.code, kind="PIPE", name=f"Bajante a {s.name}", diameter_mm=20.0)
+
+        # --- C. RED SANITARIA DE DESAGÜE (SANITARY_DRAINAGE) ---
+        net_drain = inst.create_network("Red de Evacuación y Desagüe", "SANITARY_DRAINAGE")
+        fosa = inst.add_node(net_drain.code, "OUTFALL", round(W * 0.2, 2), round(D + 2.0, 2), name="Fosa Séptica Externa", level_ref=level.code)
+        for s in spaces:
+            if any(k in s.name.upper() for k in ["BAÑO", "COCINA", "PATIO"]):
+                cx, cy = centroid(s.boundary)
+                drain_pt = inst.add_node(net_drain.code, "ROOF_DRAIN", cx, cy, name=f"Desagüe {s.name}", level_ref=level.code, space_ref=s.code)
+                inst.connect(net_drain.code, drain_pt.code, fosa.code, kind="DRAIN_PIPE", name=f"Ramal a Fosa {s.name}", diameter_mm=100.0, slope_pct=2.0)
+
+        # --- D. SADI (DETECCIÓN DE INCENDIO - FIRE_ALARM) ---
+        net_fire = sec.create_network("Sistema Automático Detección Incendios (SADI)", "FIRE_ALARM")
+        sadi_panel = sec.add_device(net_fire.code, "FIRE_PANEL", 0.40, 0.80, name="Centralita SADI 2 Zonas")
+        call_point = sec.add_device(net_fire.code, "CALL_POINT", 0.90, 0.10, name="Pulsador Manual Salida")
+        siren = sec.add_device(net_fire.code, "SOUNDER", 0.40, 1.80, name="Sirena Estroboscópica 85dB")
+        sadi_devices = 3
+        for s in spaces:
+            cx, cy = centroid(s.boundary)
+            dev_type = "HEAT_DETECTOR" if "COCINA" in s.name.upper() else "SMOKE_DETECTOR"
+            sec.add_device(net_fire.code, dev_type, cx, cy, name=f"Detector {s.name}")
+            sadi_devices += 1
+
+        # --- E. CCTV (SEGURIDAD ELECTRÓNICA) ---
+        net_cctv = sec.create_network("Circuito Cerrado de Televisión (CCTV)", "CCTV")
+        nvr = sec.add_device(net_cctv.code, "NVR", 0.50, 0.40, name="Grabador NVR 4 Canales PoE")
+        cam1 = sec.add_device(net_cctv.code, "CAMERA", 0.10, 0.10, name="Cámara 1: Acceso Portal (Domo 4MP)")
+        cam2 = sec.add_device(net_cctv.code, "CAMERA", round(W - 0.2, 2), round(D - 0.2, 2), name="Cámara 2: Fondo Patio (Bullet 4MP)")
+
+        return {
+            "electrical_nodes": elec_nodes_count,
+            "hydraulic_nodes": 6,
+            "sanitary_nodes": 4,
+            "sadi_devices": sadi_devices,
+            "cctv_cameras": 2,
+            "networks_created": [net_elec.code, net_water.code, net_drain.code, net_fire.code, net_cctv.code],
         }
 
     def _solve_layout(self, template_key: str, W: float, D: float) -> List[Dict[str, Any]]:
