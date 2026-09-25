@@ -223,7 +223,6 @@ class ArqGenWebHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/zip")
             self.send_header("Content-Disposition", 'attachment; filename="ArqGen_V2_Windows_Source_Package.zip"')
             self.send_header("Content-Length", str(len(content)))
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(content)
             return
